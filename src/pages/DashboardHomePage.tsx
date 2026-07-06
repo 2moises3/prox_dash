@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   MapPin,
@@ -16,6 +17,8 @@ import {
   BarChart3,
   ChevronRight,
   Lightbulb,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -308,6 +311,7 @@ export function DashboardHomePage() {
                 label="Base URL"
                 value={import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v1'}
                 status="neutral"
+                isSecret={true}
               />
               <StatusRow
                 label="Última sincronización"
@@ -534,22 +538,34 @@ function PriorityItem({ icon, iconBg, title, subtitle, link }: any) {
   return content
 }
 
-function StatusRow({ label, value, status }: any) {
+function StatusRow({ label, value, status, isSecret }: any) {
+  const [isVisible, setIsVisible] = useState(false)
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
+    <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center gap-2 shrink-0">
         <div className={cn(
           "w-1.5 h-1.5 rounded-full",
           status === 'good' ? "bg-jungle-500" : status === 'bad' ? "bg-rose-500" : "bg-slate-300"
         )} />
         <span className="text-sm font-medium text-slate-600">{label}</span>
       </div>
-      <span className={cn(
-        "text-sm font-medium",
-        status === 'good' ? "text-jungle-600" : status === 'bad' ? "text-rose-600" : "text-slate-500"
-      )}>
-        {value}
-      </span>
+      <div className="flex items-center gap-2 min-w-0 justify-end">
+        <span className={cn(
+          "text-sm font-medium truncate text-right",
+          status === 'good' ? "text-jungle-600" : status === 'bad' ? "text-rose-600" : "text-slate-500"
+        )}>
+          {isSecret && !isVisible ? '••••••••••••••••••••' : value}
+        </span>
+        {isSecret && (
+          <button 
+            onClick={() => setIsVisible(!isVisible)} 
+            className="text-slate-400 hover:text-slate-600 focus:outline-none shrink-0 transition-colors"
+            title={isVisible ? "Ocultar" : "Mostrar"}
+          >
+            {isVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        )}
+      </div>
     </div>
   )
 }
