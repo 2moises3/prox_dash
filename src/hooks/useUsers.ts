@@ -84,8 +84,11 @@ export function useScheduleDeletion() {
   return useMutation({
     mutationFn: ({ userId, reason }: { userId: string; reason: string }) =>
       usersApi.scheduleDeletion(userId, reason),
-    onSuccess: () => {
-      toast.success('Eliminación programada correctamente')
+    onSuccess: (data) => {
+      const formattedDate = data.deletion_scheduled_at 
+        ? new Date(data.deletion_scheduled_at).toLocaleString() 
+        : 'finalizar el periodo de gracia';
+      toast.success(`Eliminación programada para ${formattedDate}`)
       queryClient.invalidateQueries({ queryKey: ['users', 'list'] })
     },
     onError: (err) => toast.error(getApiErrorMessage(err, 'No se pudo programar la eliminación')),

@@ -95,7 +95,8 @@ export function DeleteUserDialog({ open, onOpenChange, user }: DeleteUserDialogP
             <div className="w-full">
               <p className="text-sm font-semibold text-slate-900">Programar eliminación</p>
               <p className="mt-0.5 text-xs text-slate-500">
-                La cuenta será desactivada y entrará en periodo de gracia. Los datos se limpiarán automáticamente al vencer el plazo.
+                La cuenta será desactivada ahora y se eliminará definitivamente al finalizar el periodo de gracia. <br/>
+                <strong>Periodo de gracia: 14 días.</strong>
               </p>
               {mode === 'schedule' && (
                 <div className="mt-3">

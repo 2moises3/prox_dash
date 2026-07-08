@@ -48,8 +48,25 @@ function roleBadgeVariant(role: UserRole): 'navy' | 'gold' | 'neutral' {
   return 'neutral'
 }
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-PE', { year: 'numeric', month: 'short', day: 'numeric' })
+function formatDate(dateString: string | null | undefined): string {
+  if (!dateString) return '—'
+  return new Date(dateString).toLocaleDateString('es-ES', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function getTimeRemaining(scheduledAt: string | null | undefined): string {
+  if (!scheduledAt) return ''
+  const diff = new Date(scheduledAt).getTime() - new Date().getTime()
+  if (diff <= 0) return 'Vence hoy'
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  if (days > 0) return `Faltan ${days} día${days === 1 ? '' : 's'}`
+  const hours = Math.floor(diff / (1000 * 60 * 60))
+  return `Faltan ${hours} hora${hours === 1 ? '' : 's'}`
 }
 
 export function UsersPage() {
@@ -230,9 +247,24 @@ export function UsersPage() {
                       ) : u.account_status === 'disabled' ? (
                         <Badge variant="danger">Inactivo</Badge>
                       ) : u.account_status === 'pending_deletion' ? (
-                        <Badge variant="warning">Pendiente elim.</Badge>
+                        <div className="flex flex-col gap-1">
+                          <Badge variant="warning" className="w-fit">Pendiente elim.</Badge>
+                          {u.deletion_scheduled_at && (
+                            <div className="text-[10px] leading-tight text-slate-500">
+                              <p>Se eliminará el {formatDate(u.deletion_scheduled_at)}</p>
+                              <p className="font-semibold text-amber-600">{getTimeRemaining(u.deletion_scheduled_at)}</p>
+                            </div>
+                          )}
+                        </div>
                       ) : (
-                        <Badge variant="neutral">Eliminado</Badge>
+                        <div className="flex flex-col gap-1">
+                          <Badge variant="neutral" className="w-fit">Eliminado</Badge>
+                          {u.deleted_at && (
+                            <span className="text-[10px] text-slate-500">
+                              {formatDate(u.deleted_at)}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-500">{formatDate(u.created_at)}</td>
@@ -273,22 +305,24 @@ export function UsersPage() {
                             </Button>
                           ) : null}
 
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            disabled={isSelf || isOnlySuperAdmin || u.account_status === 'deleted'}
-                            title={
-                              isSelf
-                                ? 'No puedes eliminar tu propia cuenta'
-                                : isOnlySuperAdmin
-                                  ? 'No se puede eliminar un super_admin'
-                                  : 'Eliminar usuario'
-                            }
-                            onClick={() => setDeleteTarget(u)}
-                            className="text-slate-400 hover:text-rose-600"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {u.account_status !== 'deleted' && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              disabled={isSelf || isOnlySuperAdmin}
+                              title={
+                                isSelf
+                                  ? 'No puedes eliminar tu propia cuenta'
+                                  : isOnlySuperAdmin
+                                    ? 'No se puede eliminar un super_admin'
+                                    : 'Eliminar usuario'
+                              }
+                              onClick={() => setDeleteTarget(u)}
+                              className="text-slate-400 hover:text-rose-600"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </td>
                     )}
