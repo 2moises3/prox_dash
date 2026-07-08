@@ -36,6 +36,12 @@ export interface AdminUser {
   is_active: boolean
   created_at: string
   avatar_url?: string | null
+  account_status: string
+  deletion_requested_at?: string | null
+  deletion_scheduled_at?: string | null
+  deleted_at?: string | null
+  deletion_reason?: string | null
+  deletion_requested_by?: string | null
 }
 
 /** Detalles completos de usuario (Extensión de lectura) */

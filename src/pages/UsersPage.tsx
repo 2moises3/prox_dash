@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Users, ShieldCheck, Power, PowerOff, Info, Search, UserPlus, Trash2 } from 'lucide-react'
+import { Users, ShieldCheck, Power, PowerOff, Info, Search, UserPlus, Trash2, Clock, XCircle } from 'lucide-react'
 
 import { PageHeader } from '@/components/dashboard/PageHeader'
 import { Badge } from '@/components/ui/badge'
@@ -14,7 +14,7 @@ import { CreateUserDialog } from '@/components/users/CreateUserDialog'
 import { DeleteUserDialog } from '@/components/users/DeleteUserDialog'
 import { UserDetailsDialog } from '@/components/users/UserDetailsDialog'
 import { useAuth } from '@/auth/useAuth'
-import { useUsers, useUpdateUserRole, useUpdateUserStatus } from '@/hooks/useUsers'
+import { useUsers, useUpdateUserRole, useUpdateUserStatus, useProcessDeletions, useCancelDeletion } from '@/hooks/useUsers'
 import type { AdminUser, UserRole } from '@/types'
 
 const ROLE_OPTIONS: SelectOption[] = [
@@ -59,6 +59,8 @@ export function UsersPage() {
   const { data, isLoading, isError, refetch } = useUsers()
   const updateRole = useUpdateUserRole()
   const updateStatus = useUpdateUserStatus()
+  const processDeletions = useProcessDeletions()
+  const cancelDeletion = useCancelDeletion()
   const [statusTarget, setStatusTarget] = useState<AdminUser | null>(null)
 
   // Extensión 6B: dialogs
@@ -94,14 +96,26 @@ export function UsersPage() {
           <div className="flex items-center gap-2">
             {data ? <Badge variant="neutral">{data.length} usuario{data.length === 1 ? '' : 's'}</Badge> : undefined}
             {isSuperAdmin && (
-              <Button
-                id="btn-new-user"
-                size="sm"
-                leftIcon={<UserPlus className="h-4 w-4" />}
-                onClick={() => setShowCreateDialog(true)}
-              >
-                Nuevo Usuario
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  id="btn-process-deletions"
+                  size="sm"
+                  variant="secondary"
+                  leftIcon={<Clock className="h-4 w-4" />}
+                  onClick={() => processDeletions.mutate()}
+                  loading={processDeletions.isPending}
+                >
+                  Procesar
+                </Button>
+                <Button
+                  id="btn-new-user"
+                  size="sm"
+                  leftIcon={<UserPlus className="h-4 w-4" />}
+                  onClick={() => setShowCreateDialog(true)}
+                >
+                  Nuevo Usuario
+                </Button>
+              </div>
             )}
           </div>
         }
@@ -211,10 +225,14 @@ export function UsersPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {u.is_active ? (
+                      {u.account_status === 'active' ? (
                         <Badge variant="success">Activo</Badge>
-                      ) : (
+                      ) : u.account_status === 'disabled' ? (
                         <Badge variant="danger">Inactivo</Badge>
+                      ) : u.account_status === 'pending_deletion' ? (
+                        <Badge variant="warning">Pendiente elim.</Badge>
+                      ) : (
+                        <Badge variant="neutral">Eliminado</Badge>
                       )}
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-500">{formatDate(u.created_at)}</td>
@@ -230,20 +248,35 @@ export function UsersPage() {
                           >
                             <Info className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant={u.is_active ? 'ghost' : 'primary'}
-                            size="sm"
-                            disabled={isSelf}
-                            title={isSelf ? 'No puedes cambiar tu propio estado' : undefined}
-                            leftIcon={u.is_active ? <PowerOff className="h-4 w-4" /> : <Power className="h-4 w-4" />}
-                            onClick={() => setStatusTarget(u)}
-                          >
-                            {u.is_active ? 'Desactivar' : 'Activar'}
-                          </Button>
+                          
+                          {u.account_status === 'pending_deletion' ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                              onClick={() => cancelDeletion.mutate(u.user_id)}
+                              loading={cancelDeletion.isPending}
+                              leftIcon={<XCircle className="h-4 w-4" />}
+                            >
+                              Cancelar elim.
+                            </Button>
+                          ) : u.account_status !== 'deleted' ? (
+                            <Button
+                              variant={u.is_active ? 'ghost' : 'primary'}
+                              size="sm"
+                              disabled={isSelf}
+                              title={isSelf ? 'No puedes cambiar tu propio estado' : undefined}
+                              leftIcon={u.is_active ? <PowerOff className="h-4 w-4" /> : <Power className="h-4 w-4" />}
+                              onClick={() => setStatusTarget(u)}
+                            >
+                              {u.is_active ? 'Desactivar' : 'Activar'}
+                            </Button>
+                          ) : null}
+
                           <Button
                             variant="ghost"
                             size="icon"
-                            disabled={isSelf || isOnlySuperAdmin}
+                            disabled={isSelf || isOnlySuperAdmin || u.account_status === 'deleted'}
                             title={
                               isSelf
                                 ? 'No puedes eliminar tu propia cuenta'

@@ -191,6 +191,18 @@ export const usersApi = {
   async deleteUser(userId: string, mode: DeleteUserMode): Promise<void> {
     await apiClient.delete(`/admin/users/${userId}`, { params: { mode } })
   },
+  async scheduleDeletion(userId: string, reason: string): Promise<AdminUser> {
+    const { data } = await apiClient.post<ApiEnvelope<AdminUser>>(`/admin/users/${userId}/schedule-deletion`, { reason })
+    return unwrap(data)
+  },
+  async cancelDeletion(userId: string): Promise<AdminUser> {
+    const { data } = await apiClient.post<ApiEnvelope<AdminUser>>(`/admin/users/${userId}/cancel-deletion`)
+    return unwrap(data)
+  },
+  async processDeletions(): Promise<{ processed: number }> {
+    const { data } = await apiClient.post<ApiEnvelope<{ processed: number }>>('/admin/users/process-deletions')
+    return unwrap(data)
+  },
 }
 
 /* ------------------------------ Métricas ---------------------------------- */

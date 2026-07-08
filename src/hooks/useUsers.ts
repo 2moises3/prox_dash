@@ -79,3 +79,40 @@ export function useDeleteUser() {
   })
 }
 
+export function useScheduleDeletion() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ userId, reason }: { userId: string; reason: string }) =>
+      usersApi.scheduleDeletion(userId, reason),
+    onSuccess: () => {
+      toast.success('Eliminación programada correctamente')
+      queryClient.invalidateQueries({ queryKey: ['users', 'list'] })
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'No se pudo programar la eliminación')),
+  })
+}
+
+export function useCancelDeletion() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (userId: string) => usersApi.cancelDeletion(userId),
+    onSuccess: () => {
+      toast.success('Eliminación cancelada')
+      queryClient.invalidateQueries({ queryKey: ['users', 'list'] })
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'No se pudo cancelar la eliminación')),
+  })
+}
+
+export function useProcessDeletions() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => usersApi.processDeletions(),
+    onSuccess: (data) => {
+      toast.success(`Se procesaron ${data.processed} eliminaciones pendientes`)
+      queryClient.invalidateQueries({ queryKey: ['users', 'list'] })
+      queryClient.invalidateQueries({ queryKey: ['metrics'] })
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'Error al procesar eliminaciones')),
+  })
+}

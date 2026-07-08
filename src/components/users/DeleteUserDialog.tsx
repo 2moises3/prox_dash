@@ -11,7 +11,8 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useDeleteUser } from '@/hooks/useUsers'
+import { useDeleteUser, useScheduleDeletion } from '@/hooks/useUsers'
+import { useAuth } from '@/auth/useAuth'
 import type { AdminUser, DeleteUserMode } from '@/types'
 
 interface DeleteUserDialogProps {
@@ -21,28 +22,43 @@ interface DeleteUserDialogProps {
 }
 
 export function DeleteUserDialog({ open, onOpenChange, user }: DeleteUserDialogProps) {
+  const { user: currentUser } = useAuth()
+  const isSuperAdmin = currentUser?.role === 'super_admin'
+
   const deleteUser = useDeleteUser()
-  const [mode, setMode] = useState<DeleteUserMode>('data_only')
+  const scheduleDeletion = useScheduleDeletion()
+  
+  const [mode, setMode] = useState<DeleteUserMode | 'schedule'>('schedule')
   const [confirmText, setConfirmText] = useState('')
+  const [reason, setReason] = useState('')
 
   function handleClose(isOpen: boolean) {
     if (!isOpen) {
-      setMode('data_only')
+      setMode('schedule')
       setConfirmText('')
+      setReason('')
     }
     onOpenChange(isOpen)
   }
 
   function handleConfirm() {
     if (!user) return
-    deleteUser.mutate(
-      { userId: user.user_id, mode },
-      { onSuccess: () => handleClose(false) },
-    )
+    if (mode === 'schedule') {
+      scheduleDeletion.mutate(
+        { userId: user.user_id, reason: reason || 'A petición del administrador' },
+        { onSuccess: () => handleClose(false) }
+      )
+    } else {
+      deleteUser.mutate(
+        { userId: user.user_id, mode },
+        { onSuccess: () => handleClose(false) },
+      )
+    }
   }
 
   const needsTypedConfirm = mode === 'full'
   const isConfirmed = !needsTypedConfirm || confirmText === 'ELIMINAR'
+  const isPending = deleteUser.isPending || scheduleDeletion.isPending
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -58,6 +74,42 @@ export function DeleteUserDialog({ open, onOpenChange, user }: DeleteUserDialogP
         </DialogHeader>
 
         <div className="space-y-3">
+          {/* Option: Schedule */}
+          <label
+            htmlFor="mode-schedule"
+            className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors ${
+              mode === 'schedule'
+                ? 'border-indigo-400 bg-indigo-50/50'
+                : 'border-slate-200 bg-white hover:border-slate-300'
+            }`}
+          >
+            <input
+              type="radio"
+              id="mode-schedule"
+              name="delete-mode"
+              value="schedule"
+              checked={mode === 'schedule'}
+              onChange={() => setMode('schedule')}
+              className="mt-1 accent-indigo-500"
+            />
+            <div className="w-full">
+              <p className="text-sm font-semibold text-slate-900">Programar eliminación</p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                La cuenta será desactivada y entrará en periodo de gracia. Los datos se limpiarán automáticamente al vencer el plazo.
+              </p>
+              {mode === 'schedule' && (
+                <div className="mt-3">
+                  <Input
+                    placeholder="Motivo de la eliminación (opcional)"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    className="text-sm"
+                  />
+                </div>
+              )}
+            </div>
+          </label>
+
           {/* Option: Data Only */}
           <label
             htmlFor="mode-data-only"
@@ -77,7 +129,7 @@ export function DeleteUserDialog({ open, onOpenChange, user }: DeleteUserDialogP
               className="mt-1 accent-amber-500"
             />
             <div>
-              <p className="text-sm font-semibold text-slate-900">Eliminar solo datos</p>
+              <p className="text-sm font-semibold text-slate-900">Limpiar solo datos</p>
               <p className="mt-0.5 text-xs text-slate-500">
                 Mantiene la cuenta activa. Elimina favoritos, visitas, perfil viajero y preferencias.
                 Las reseñas quedan anónimas.
@@ -85,32 +137,33 @@ export function DeleteUserDialog({ open, onOpenChange, user }: DeleteUserDialogP
             </div>
           </label>
 
-          {/* Option: Full */}
-          <label
-            htmlFor="mode-full"
-            className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors ${
-              mode === 'full'
-                ? 'border-rose-400 bg-rose-50/50'
-                : 'border-slate-200 bg-white hover:border-slate-300'
-            }`}
-          >
-            <input
-              type="radio"
-              id="mode-full"
-              name="delete-mode"
-              value="full"
-              checked={mode === 'full'}
-              onChange={() => setMode('full')}
-              className="mt-1 accent-rose-500"
-            />
-            <div>
-              <p className="text-sm font-semibold text-slate-900">Eliminar cuenta y datos</p>
-              <p className="mt-0.5 text-xs text-slate-500">
-                Elimina la cuenta y limpia todos sus datos asociados.
-                Las reseñas quedan anónimas. <strong>Esta acción es irreversible.</strong>
-              </p>
-            </div>
-          </label>
+          {/* Option: Full (solo super admin) */}
+          {isSuperAdmin && (
+            <label
+              htmlFor="mode-full"
+              className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors ${
+                mode === 'full'
+                  ? 'border-rose-400 bg-rose-50/50'
+                  : 'border-slate-200 bg-white hover:border-slate-300'
+              }`}
+            >
+              <input
+                type="radio"
+                id="mode-full"
+                name="delete-mode"
+                value="full"
+                checked={mode === 'full'}
+                onChange={() => setMode('full')}
+                className="mt-1 accent-rose-500"
+              />
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Eliminar cuenta y datos (Hard Delete)</p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Eliminación inmediata. <strong>Esta acción es irreversible y no pasa por periodo de gracia.</strong>
+                </p>
+              </div>
+            </label>
+          )}
 
           {/* Typed confirm for full deletion */}
           {needsTypedConfirm && (
@@ -138,17 +191,17 @@ export function DeleteUserDialog({ open, onOpenChange, user }: DeleteUserDialogP
           <Button
             variant="secondary"
             onClick={() => handleClose(false)}
-            disabled={deleteUser.isPending}
+            disabled={isPending}
           >
             Cancelar
           </Button>
           <Button
-            variant="danger"
+            variant={mode === 'schedule' ? 'primary' : 'danger'}
             onClick={handleConfirm}
-            disabled={!isConfirmed || deleteUser.isPending}
-            loading={deleteUser.isPending}
+            disabled={!isConfirmed || isPending}
+            loading={isPending}
           >
-            {mode === 'full' ? 'Eliminar cuenta' : 'Limpiar datos'}
+            {mode === 'full' ? 'Eliminar permanentemente' : mode === 'schedule' ? 'Programar' : 'Limpiar datos'}
           </Button>
         </DialogFooter>
       </DialogContent>
