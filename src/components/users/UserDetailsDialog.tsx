@@ -38,6 +38,27 @@ export function UserDetailsDialog({ userId, open, onOpenChange }: Props) {
           <div className="py-8 text-center text-sm text-slate-500">
             No se pudo cargar la información del usuario.
           </div>
+        ) : user.account_status === 'deleted' ? (
+          <div className="space-y-6 py-4 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+              <Compass className="h-8 w-8" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900">Usuario eliminado</h3>
+              <p className="mt-2 text-sm text-slate-500 px-4">
+                Este usuario fue eliminado o anonimizado. La información personal ya no está disponible.
+              </p>
+            </div>
+            <div className="flex justify-center gap-2">
+              <Badge variant="neutral">Eliminado</Badge>
+              {user.deleted_at && (
+                <Badge variant="neutral" className="bg-slate-100 font-normal">
+                  {new Date(user.deleted_at).toLocaleDateString('es-ES')}
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-slate-400 mt-4 font-mono">ID: {user.user_id}</p>
+          </div>
         ) : (
           <div className="space-y-6 py-4">
             {/* Cabecera / Perfil */}
@@ -63,8 +84,10 @@ export function UserDetailsDialog({ userId, open, onOpenChange }: Props) {
                   <Badge variant={user.role === 'super_admin' ? 'navy' : user.role === 'admin' ? 'gold' : 'neutral'}>
                     {user.role}
                   </Badge>
-                  {user.is_active ? (
+                  {user.account_status === 'active' ? (
                     <Badge variant="success">Activo</Badge>
+                  ) : user.account_status === 'pending_deletion' ? (
+                    <Badge variant="warning">Pendiente elim.</Badge>
                   ) : (
                     <Badge variant="danger">Inactivo</Badge>
                   )}

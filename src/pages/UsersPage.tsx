@@ -100,7 +100,10 @@ export function UsersPage() {
       const matchesRole = roleFilter === 'all' || u.role === roleFilter
       const matchesStatus =
         statusFilter === 'all' || (statusFilter === 'active' ? u.is_active : !u.is_active)
-      return matchesTerm && matchesRole && matchesStatus
+      
+      const isNotSentinel = u.user_id !== 'ANON_DELETED' && u.email !== 'deleted@proxvel.internal'
+
+      return matchesTerm && matchesRole && matchesStatus && isNotSentinel
     })
   }, [data, search, roleFilter, statusFilter])
 
