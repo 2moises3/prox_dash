@@ -35,49 +35,85 @@ export function UploadMediaDialog({
 }: UploadMediaDialogProps) {
   const { upload } = useMediaMutations(destinationId)
   const [open, setOpen] = useState(false)
-  const [file, setFile] = useState<File | null>(null)
-  const [preview, setPreview] = useState<string | null>(null)
+  const [files, setFiles] = useState<File[]>([])
+  const [previews, setPreviews] = useState<string[]>([])
   const [mediaType, setMediaType] = useState<MediaType>(defaultType)
   const [altText, setAltText] = useState('')
   const [progress, setProgress] = useState(0)
+  const [isUploading, setIsUploading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const reset = () => {
-    setFile(null)
-    setPreview(null)
+    setFiles([])
+    setPreviews([])
     setAltText('')
     setProgress(0)
     setMediaType(defaultType)
+    setIsUploading(false)
   }
 
-  const validateAndSet = (selected: File | undefined) => {
+  const validateAndSet = (selected: FileList | null) => {
     if (!selected) return
-    if (!ALLOWED.includes(selected.type)) {
-      toast.error('Formato no permitido. Usa JPG, PNG, WEBP o GIF.')
-      return
+    const validFiles: File[] = []
+    const newPreviews: string[] = []
+    
+    for (let i = 0; i < selected.length; i++) {
+      const f = selected[i]
+      if (!ALLOWED.includes(f.type)) {
+        toast.error(`Formato no permitido para ${f.name}.`)
+        continue
+      }
+      if (f.size > MAX_SIZE_MB * 1024 * 1024) {
+        toast.error(`La imagen ${f.name} supera el máximo de ${MAX_SIZE_MB} MB.`)
+        continue
+      }
+      validFiles.push(f)
+      newPreviews.push(URL.createObjectURL(f))
     }
-    if (selected.size > MAX_SIZE_MB * 1024 * 1024) {
-      toast.error(`La imagen supera el máximo de ${MAX_SIZE_MB} MB.`)
-      return
-    }
-    setFile(selected)
-    setPreview(URL.createObjectURL(selected))
+    
+    setFiles((prev) => [...prev, ...validFiles])
+    setPreviews((prev) => [...prev, ...newPreviews])
+    
+    if (inputRef.current) inputRef.current.value = ''
   }
 
-  const handleSubmit = () => {
-    if (!file) {
-      toast.error('Selecciona una imagen primero.')
+  const removeFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index))
+    setPreviews((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const handleSubmit = async () => {
+    if (files.length === 0) {
+      toast.error('Selecciona al menos una imagen primero.')
       return
     }
-    upload.mutate(
-      { file, mediaType, altText: altText.trim() || undefined, onProgress: setProgress },
-      {
-        onSuccess: () => {
-          setOpen(false)
-          reset()
-        },
-      },
-    )
+    setIsUploading(true)
+    let successCount = 0
+    
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i]
+      try {
+        await upload.mutateAsync({
+          file: f,
+          mediaType,
+          altText: altText.trim() || undefined,
+          onProgress: (p) => setProgress(Math.round(((i * 100) + p) / files.length))
+        })
+        successCount++
+      } catch (err) {
+        console.error('Error uploading file:', f.name, err)
+      }
+    }
+    
+    setIsUploading(false)
+    if (successCount === files.length) {
+      setOpen(false)
+      reset()
+    } else if (successCount > 0) {
+      toast.error(`Se subieron ${successCount} de ${files.length} imágenes.`)
+      setOpen(false)
+      reset()
+    }
   }
 
   return (
@@ -99,17 +135,29 @@ export function UploadMediaDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          {preview ? (
-            <div className="relative overflow-hidden rounded-xl border border-slate-200">
-              <img src={preview} alt="Vista previa" className="max-h-56 w-full object-cover" />
-              <button
-                type="button"
-                onClick={reset}
-                className="absolute right-2 top-2 rounded-full bg-slate-900/60 p-1 text-white hover:bg-slate-900"
-                aria-label="Quitar imagen"
-              >
-                <X className="h-4 w-4" />
-              </button>
+          {previews.length > 0 ? (
+            <div className="relative rounded-xl border border-slate-200 bg-slate-50 p-2">
+              <div className="grid max-h-56 grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3">
+                {previews.map((preview, idx) => (
+                  <div key={idx} className="relative aspect-square overflow-hidden rounded-lg border border-slate-200 bg-white">
+                    <img src={preview} alt="Vista previa" className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeFile(idx)}
+                      className="absolute right-1 top-1 rounded-full bg-slate-900/60 p-1 text-white hover:bg-slate-900"
+                      aria-label="Quitar imagen"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2 text-center">
+                <Button variant="ghost" size="sm" onClick={() => inputRef.current?.click()} className="text-xs">
+                  <UploadCloud className="mr-2 h-3.5 w-3.5" />
+                  Agregar más imágenes
+                </Button>
+              </div>
             </div>
           ) : (
             <button
@@ -126,9 +174,10 @@ export function UploadMediaDialog({
           <input
             ref={inputRef}
             type="file"
+            multiple
             accept={ALLOWED.join(',')}
             className="hidden"
-            onChange={(e) => validateAndSet(e.target.files?.[0])}
+            onChange={(e) => validateAndSet(e.target.files)}
           />
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -154,7 +203,7 @@ export function UploadMediaDialog({
             </div>
           </div>
 
-          {upload.isPending ? (
+          {isUploading ? (
             <div className="h-2 overflow-hidden rounded-full bg-slate-100">
               <div
                 className="h-full rounded-full bg-jungle-500 transition-all"
@@ -165,11 +214,11 @@ export function UploadMediaDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="secondary" onClick={() => setOpen(false)} disabled={upload.isPending}>
+          <Button variant="secondary" onClick={() => setOpen(false)} disabled={isUploading}>
             Cancelar
           </Button>
-          <Button onClick={handleSubmit} loading={upload.isPending} disabled={!file}>
-            Subir imagen
+          <Button onClick={handleSubmit} loading={isUploading} disabled={files.length === 0}>
+            {files.length > 1 ? `Subir ${files.length} imágenes` : 'Subir imagen'}
           </Button>
         </DialogFooter>
       </DialogContent>

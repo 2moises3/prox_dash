@@ -15,7 +15,7 @@ import type { MediaItem } from '@/types'
 
 /* ── Drag handle para un item de galería ─────────────────────────────────── */
 function DragHandle() {
-  return <GripVertical className="h-4 w-4 text-slate-400 cursor-grab active:cursor-grabbing" />
+  return <GripVertical className="h-4 w-4 text-white cursor-grab active:cursor-grabbing" />
 }
 
 /* ── Item reordenable ────────────────────────────────────────────────────── */
@@ -23,19 +23,28 @@ function ReorderItem({ item, destinationId, inactive }: { item: MediaItem; desti
   const controls = useDragControls()
   return (
     <Reorder.Item
+      as="div"
       value={item}
       dragListener={false}
       dragControls={controls}
-      className="touch-none"
+      className="touch-none select-none w-[260px] shrink-0"
     >
       <div className="relative">
-        <div
-          onPointerDown={(e) => controls.start(e)}
-          className="absolute left-2 top-2 z-10 rounded p-1 bg-white/80 shadow-sm"
-        >
-          <DragHandle />
-        </div>
-        <MediaCard destinationId={destinationId} media={item} type="gallery" inactive={inactive} />
+        <MediaCard
+          destinationId={destinationId}
+          media={item}
+          type="gallery"
+          inactive={inactive}
+          dragHandle={
+            <div
+              onPointerDown={(e) => controls.start(e)}
+              className="rounded p-1 bg-slate-900/60 hover:bg-slate-900 text-white shadow-sm"
+              style={{ touchAction: 'none' }}
+            >
+              <DragHandle />
+            </div>
+          }
+        />
       </div>
     </Reorder.Item>
   )
@@ -170,11 +179,15 @@ export function MediaManager({ id }: { id: string }) {
           </div>
         </div>
 
-        {isDirty && (
-          <p className="mb-3 text-xs text-gold-600 font-medium">
+        <div className="h-5 mb-3">
+          <p
+            className={`text-xs text-gold-600 font-medium transition-opacity duration-300 ${
+              isDirty ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
+          >
             Arrastra las imágenes para reordenarlas · El ícono ⠿ es el asa de arrastre
           </p>
-        )}
+        </div>
 
         {galleryItems.length === 0 ? (
           <EmptyState
@@ -190,17 +203,19 @@ export function MediaManager({ id }: { id: string }) {
             }
           />
         ) : (
-          <Reorder.Group
-            axis="y"
-            values={galleryItems}
-            onReorder={handleReorder}
-            className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4"
-            as="div"
-          >
-            {galleryItems.map((item) => (
-              <ReorderItem key={item.id} item={item} destinationId={id} />
-            ))}
-          </Reorder.Group>
+          <div className="overflow-x-auto pb-4 scrollbar-thin px-1 pt-1">
+            <Reorder.Group
+              axis="x"
+              values={galleryItems}
+              onReorder={handleReorder}
+              className="flex gap-4 items-start w-max"
+              as="div"
+            >
+              {galleryItems.map((item) => (
+                <ReorderItem key={item.id} item={item} destinationId={id} />
+              ))}
+            </Reorder.Group>
+          </div>
         )}
 
         {/* Galería inactiva */}

@@ -17,7 +17,9 @@ export const apiClient: AxiosInstance = axios.create({
 })
 
 function isAuthEndpoint(url?: string): boolean {
-  return Boolean(url && url.includes('/auth/login'))
+  if (!url) return false
+  const lowerUrl = url.toLowerCase()
+  return lowerUrl.includes('/auth/login') || lowerUrl.includes('login')
 }
 
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
@@ -34,11 +36,16 @@ apiClient.interceptors.response.use(
     const status = error.response?.status
     const url = error.config?.url
 
-    if (status === 401 && !isAuthEndpoint(url)) {
-      // Token inválido o expirado → cerrar sesión globalmente.
-      if (authStore.getToken()) {
-        authStore.clearSession()
-        toast.error('Tu sesión expiró. Inicia sesión nuevamente.')
+    if (status === 401) {
+      if (!isAuthEndpoint(url)) {
+        // Token inválido o expirado → cerrar sesión globalmente.
+        if (authStore.getToken()) {
+          authStore.clearSession()
+          // Evitar mostrar este mensaje si estamos activamente en la página de login intentando entrar
+          if (window.location.pathname !== '/login') {
+            toast.error('Tu sesión ha expirado o es inválida. Inicia sesión nuevamente.')
+          }
+        }
       }
     } else if (status === 403) {
       toast.error('No tienes permisos administrativos para esta acción.')
@@ -60,7 +67,19 @@ export function getApiErrorMessage(error: unknown, fallback = 'Ocurrió un error
       return 'No se pudo conectar con el backend. Verifica que la API esté disponible.'
     }
     const data = error.response?.data as { detail?: string; message?: string } | undefined
-    return data?.detail || data?.message || error.message || fallback
+    const msg = data?.detail || data?.message
+    
+    if (msg) {
+      const lowerMsg = msg.toLowerCase()
+      if (lowerMsg.includes('incorrect username') || lowerMsg.includes('incorrect email') || lowerMsg.includes('incorrect password')) {
+        return 'Correo o contraseña incorrectos. Verifica tus datos.'
+      }
+      if (lowerMsg.includes('inactive user')) {
+        return 'Esta cuenta está inactiva. Contacta al administrador.'
+      }
+      return msg
+    }
+    return error.message || fallback
   }
   return fallback
 }

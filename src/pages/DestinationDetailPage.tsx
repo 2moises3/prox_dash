@@ -16,6 +16,7 @@ import {
   Power,
   PowerOff,
   GitMerge,
+  Copy,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -621,6 +622,7 @@ export function DestinationDetailPage() {
                           <Field label="Altitud (m)" value={tourism?.altitude_m != null ? String(tourism.altitude_m) : null} />
                           <Field label="Latitud" value={tourism?.latitude != null ? String(tourism.latitude) : null} mono />
                           <Field label="Longitud" value={tourism?.longitude != null ? String(tourism.longitude) : null} mono />
+                          <Field label="Radio geocerca (m)" value={tourism?.geofence_radius_m != null ? String(tourism.geofence_radius_m) : null} />
                         </div>
                       </CardContent>
                     </Card>
@@ -641,6 +643,18 @@ export function DestinationDetailPage() {
                         <div className="grid grid-cols-2 gap-4">
                           <Field label="Tipo de experiencia" value={tourism?.experience_type} />
                         </div>
+                        <div>
+                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1">Resumen de información al visitante</p>
+                          <p className="text-sm text-slate-600">{tourism?.visitor_info_summary || <span className="italic text-slate-400">Sin información</span>}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1">Resumen de actividades</p>
+                          <p className="text-sm text-slate-600">{tourism?.activities_summary || <span className="italic text-slate-400">Sin información</span>}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1">Resumen de accesibilidad</p>
+                          <p className="text-sm text-slate-600">{tourism?.accessibility_summary || <span className="italic text-slate-400">Sin información</span>}</p>
+                        </div>
                       </CardContent>
                     </Card>
 
@@ -649,6 +663,7 @@ export function DestinationDetailPage() {
                       <CardContent>
                         <div className="grid grid-cols-2 gap-4">
                           <Field label="Fuente oficial" value={tourism?.official_source_name} />
+                          <Field label="Fuente oficial (código)" value={tourism?.official_source_code} />
                           {tourism?.official_source_url ? (
                             <div className="rounded-lg bg-slate-50 px-3 py-2">
                               <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">URL oficial</p>
@@ -666,7 +681,61 @@ export function DestinationDetailPage() {
                             <Field label="URL oficial" value={null} />
                           )}
                           <Field label="Fuente secundaria" value={tourism?.secondary_source_name} />
-                          <Field label="Fuente del mapa" value={tourism?.map_source} />
+                          <Field label="Fuente secundaria (código)" value={tourism?.secondary_source_code} />
+                          {tourism?.secondary_source_url ? (
+                            <div className="rounded-lg bg-slate-50 px-3 py-2">
+                              <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">URL secundaria</p>
+                              <a
+                                href={tourism.secondary_source_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-0.5 inline-flex items-center gap-1 text-sm font-medium text-lake-600 hover:text-lake-700"
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                                Visitar enlace
+                              </a>
+                            </div>
+                          ) : (
+                            <Field label="URL secundaria" value={null} />
+                          )}
+                          {tourism?.map_source ? (
+                            <div className="rounded-lg bg-slate-50 px-3 py-2 col-span-2">
+                              <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Fuente del mapa</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <a
+                                  href={tourism.map_source}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="truncate flex-1 text-sm font-medium text-lake-600 hover:text-lake-700"
+                                >
+                                  {tourism.map_source}
+                                </a>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-6 w-6 shrink-0 p-0" 
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(tourism.map_source!)
+                                    toast.success('Enlace copiado al portapapeles')
+                                  }}
+                                  title="Copiar enlace"
+                                >
+                                  <Copy className="h-3.5 w-3.5" />
+                                </Button>
+                                <a
+                                  href={tourism.map_source}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-slate-400 hover:bg-slate-200 hover:text-slate-600"
+                                  title="Abrir en nueva pestaña"
+                                >
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                </a>
+                              </div>
+                            </div>
+                          ) : (
+                            <Field label="Fuente del mapa" value={null} />
+                          )}
                         </div>
                       </CardContent>
                     </Card>

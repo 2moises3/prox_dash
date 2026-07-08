@@ -70,9 +70,15 @@ export function MediaCard({ destinationId, media, type, inactive = false, dragHa
       )}
     >
       {/* Imagen */}
-      <div className="relative aspect-[4/3] bg-slate-100">
+      <div className="relative aspect-[4/3] bg-slate-100 select-none">
         {media.url ? (
-          <img src={media.url} alt={media.alt_text ?? ''} className="h-full w-full object-cover" loading="lazy" />
+          <img 
+            src={media.url} 
+            alt={media.alt_text ?? ''} 
+            className="h-full w-full object-cover pointer-events-none" 
+            draggable={false}
+            loading="lazy" 
+          />
         ) : null}
 
         {/* Overlay inactivo */}
