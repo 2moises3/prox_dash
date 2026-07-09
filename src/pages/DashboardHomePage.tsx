@@ -459,7 +459,17 @@ export function DashboardHomePage() {
 
 // --- Helper Components ---
 
-function ImageCard({ title, value, subtitle, icon, bgUrl, color, loading }: any) {
+interface ImageCardProps {
+  title: string
+  value: number | string
+  subtitle: string
+  icon: React.ReactNode
+  bgUrl: string
+  color: 'navy' | 'jungle' | 'amber' | 'rose' | string
+  loading?: boolean
+}
+
+function ImageCard({ title, value, subtitle, icon, bgUrl, color, loading }: ImageCardProps) {
   const overlayColors = {
     navy: 'from-navy-900/90 to-navy-900/40',
     jungle: 'from-jungle-900/90 to-jungle-900/40',
@@ -495,7 +505,16 @@ function ImageCard({ title, value, subtitle, icon, bgUrl, color, loading }: any)
   )
 }
 
-function StatCard({ icon, title, value, subtitle, iconBg, loading }: any) {
+interface StatCardProps {
+  icon: React.ReactNode
+  title: string
+  value: number | string
+  subtitle: React.ReactNode
+  iconBg: string
+  loading?: boolean
+}
+
+function StatCard({ icon, title, value, subtitle, iconBg, loading }: StatCardProps) {
   return (
     <Card className="shadow-sm border-slate-200 hover:shadow-md transition-shadow">
       <CardContent className="p-5 flex items-center gap-4">
@@ -516,7 +535,15 @@ function StatCard({ icon, title, value, subtitle, iconBg, loading }: any) {
   )
 }
 
-function PriorityItem({ icon, iconBg, title, subtitle, link }: any) {
+interface PriorityItemProps {
+  icon: React.ReactNode
+  iconBg: string
+  title: string
+  subtitle: string
+  link?: string
+}
+
+function PriorityItem({ icon, iconBg, title, subtitle, link }: PriorityItemProps) {
   const content = (
     <div className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors group cursor-pointer">
       <div className="flex items-center gap-3">
@@ -538,7 +565,14 @@ function PriorityItem({ icon, iconBg, title, subtitle, link }: any) {
   return content
 }
 
-function StatusRow({ label, value, status, isSecret }: any) {
+interface StatusRowProps {
+  label: string
+  value: string | number
+  status: 'good' | 'bad' | 'neutral'
+  isSecret?: boolean
+}
+
+function StatusRow({ label, value, status, isSecret }: StatusRowProps) {
   const [isVisible, setIsVisible] = useState(false)
   return (
     <div className="flex items-center justify-between gap-4">

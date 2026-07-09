@@ -20,25 +20,28 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>
 
+const WORDS = ['PROXVEL', 'tu Próximo Viaje']
+
 export function LoginPage() {
   const { isAuthenticated, isAdmin } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [showPassword, setShowPassword] = useState(false)
 
-  const words = ['PROXVEL', 'tu Próximo Viaje']
   const [text, setText] = useState('PROXVEL')
   const [isDeleting, setIsDeleting] = useState(false)
   const [loopNum, setLoopNum] = useState(0)
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>
-    const currentWord = words[loopNum % words.length]
+    const currentWord = WORDS[loopNum % WORDS.length]
 
     if (isDeleting) {
       if (text === '') {
-        setIsDeleting(false)
-        setLoopNum((prev) => prev + 1)
+        timer = setTimeout(() => {
+          setIsDeleting(false)
+          setLoopNum((prev) => prev + 1)
+        }, 150)
       } else {
         timer = setTimeout(() => {
           setText(currentWord.substring(0, text.length - 1))
