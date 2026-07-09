@@ -68,7 +68,7 @@ export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) 
             Nuevo Usuario
           </DialogTitle>
           <DialogDescription>
-            Crea una cuenta de administrador u operador para el dashboard.
+            Crea una cuenta para acceder a la plataforma. Se creará una cuenta base sin perfil de viajero.
           </DialogDescription>
         </DialogHeader>
 
@@ -101,7 +101,7 @@ export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) 
 
           {/* Password */}
           <div>
-            <Label htmlFor="create-user-password">Contraseña</Label>
+            <Label htmlFor="create-user-password">Contraseña inicial</Label>
             <Input
               id="create-user-password"
               type="password"
@@ -125,12 +125,25 @@ export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) 
           </div>
 
           {/* Nota informativa */}
-          <div className="flex items-start gap-2 rounded-lg border border-slate-200/80 bg-slate-50/60 p-3 text-xs text-slate-500">
-            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <p>
-              Los administradores pueden acceder al dashboard con permisos limitados.
-              El rol <strong>super_admin</strong> no se crea desde esta pantalla.
-            </p>
+          <div className="flex flex-col gap-2 rounded-lg border border-slate-200/80 bg-slate-50/60 p-3 text-xs text-slate-500">
+            <div className="flex items-start gap-2">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <p>
+                <strong>Nota:</strong> Las preferencias turísticas se completan desde la app móvil. El usuario deberá completar su perfil viajero al iniciar sesión por primera vez para recibir recomendaciones personalizadas.
+              </p>
+            </div>
+            <div className="flex items-start gap-2">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <p>
+                Por ahora esta contraseña no es temporal. El cambio obligatorio queda pendiente para una fase futura.
+              </p>
+            </div>
+            <div className="flex items-start gap-2">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <p>
+                El rol <strong>super_admin</strong> es exclusivo de sistema y no se puede crear desde esta pantalla.
+              </p>
+            </div>
           </div>
 
           <DialogFooter>

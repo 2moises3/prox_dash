@@ -13,15 +13,10 @@ import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
 import { CreateUserDialog } from '@/components/users/CreateUserDialog'
 import { DeleteUserDialog } from '@/components/users/DeleteUserDialog'
 import { UserDetailsDialog } from '@/components/users/UserDetailsDialog'
+import { ChangeRoleDialog } from '@/components/users/ChangeRoleDialog'
 import { useAuth } from '@/auth/useAuth'
-import { useUsers, useUpdateUserRole, useUpdateUserStatus, useProcessDeletions, useCancelDeletion } from '@/hooks/useUsers'
+import { useUsers, useUpdateUserStatus, useProcessDeletions, useCancelDeletion } from '@/hooks/useUsers'
 import type { AdminUser, UserRole } from '@/types'
-
-const ROLE_OPTIONS: SelectOption[] = [
-  { value: 'traveler', label: 'Viajero' },
-  { value: 'admin', label: 'Admin' },
-  { value: 'super_admin', label: 'Super admin' },
-]
 
 const ROLE_LABEL: Record<UserRole, string> = {
   traveler: 'Viajero',
@@ -74,7 +69,6 @@ export function UsersPage() {
   const isSuperAdmin = user?.role === 'super_admin'
 
   const { data, isLoading, isError, refetch } = useUsers()
-  const updateRole = useUpdateUserRole()
   const updateStatus = useUpdateUserStatus()
   const processDeletions = useProcessDeletions()
   const cancelDeletion = useCancelDeletion()
@@ -84,6 +78,7 @@ export function UsersPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null)
   const [detailsTarget, setDetailsTarget] = useState<string | null>(null)
+  const [roleTarget, setRoleTarget] = useState<AdminUser | null>(null)
 
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
@@ -232,17 +227,7 @@ export function UsersPage() {
                       </code>
                     </td>
                     <td className="px-4 py-3">
-                      {isSuperAdmin ? (
-                        <SelectField
-                          value={u.role}
-                          onValueChange={(v) => updateRole.mutate({ userId: u.user_id, role: v as UserRole })}
-                          options={ROLE_OPTIONS}
-                          className="w-36"
-                          ariaLabel={`Rol de ${u.email}`}
-                        />
-                      ) : (
-                        <Badge variant={roleBadgeVariant(u.role)}>{ROLE_LABEL[u.role]}</Badge>
-                      )}
+                      <Badge variant={roleBadgeVariant(u.role)}>{ROLE_LABEL[u.role]}</Badge>
                     </td>
                     <td className="px-4 py-3">
                       {u.account_status === 'active' ? (
@@ -307,6 +292,17 @@ export function UsersPage() {
                               {u.is_active ? 'Desactivar' : 'Activar'}
                             </Button>
                           ) : null}
+
+                          {isSuperAdmin && !isSelf && u.account_status === 'active' && u.user_id !== 'ANON_DELETED' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setRoleTarget(u)}
+                              className="text-navy-600 hover:bg-navy-50"
+                            >
+                              Cambiar rol
+                            </Button>
+                          )}
 
                           {u.account_status !== 'deleted' && (
                             <Button
@@ -384,6 +380,12 @@ export function UsersPage() {
         userId={detailsTarget}
         open={detailsTarget !== null}
         onOpenChange={(o) => { if (!o) setDetailsTarget(null) }}
+      />
+
+      <ChangeRoleDialog
+        open={roleTarget !== null}
+        onOpenChange={(o) => { if (!o) setRoleTarget(null) }}
+        user={roleTarget}
       />
     </div>
   )
