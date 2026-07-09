@@ -32,9 +32,12 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 
 apiClient.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<{ detail?: string; message?: string }>) => {
+  (error: AxiosError<{ detail?: string; message?: string; error?: string }>) => {
     const status = error.response?.status
     const url = error.config?.url
+    const data = error.response?.data
+    const msg = data?.detail || data?.message || data?.error
+    const lowerMsg = msg ? msg.toLowerCase() : ''
 
     if (status === 401) {
       if (!isAuthEndpoint(url)) {
@@ -48,7 +51,11 @@ apiClient.interceptors.response.use(
         }
       }
     } else if (status === 403) {
-      toast.error('No tienes permisos administrativos para esta acción.')
+      if (lowerMsg.includes('desactivada') || lowerMsg.includes('eliminación') || lowerMsg.includes('deleted') || lowerMsg.includes('inactive')) {
+        toast.error('Tu cuenta administrativa se encuentra inactiva o deshabilitada.')
+      } else {
+        toast.error(msg || 'No tienes permisos administrativos para esta acción.')
+      }
     } else if (status === 500) {
       toast.error('Error interno del servidor. Inténtalo más tarde.')
     } else if (error.code === 'ERR_NETWORK') {
@@ -61,25 +68,35 @@ apiClient.interceptors.response.use(
 )
 
 /** Extrae un mensaje de error legible de un error de Axios. */
-export function getApiErrorMessage(error: unknown, fallback = 'Ocurrió un error inesperado'): string {
+export function getApiErrorMessage(error: unknown, fallback = 'Ocurrió un error inesperado en el servidor. Intenta nuevamente.'): string {
   if (axios.isAxiosError(error)) {
     if (error.code === 'ERR_NETWORK') {
-      return 'No se pudo conectar con el backend. Verifica que la API esté disponible.'
+      return 'No pudimos conectar con el servidor. Verifica tu conexión.'
     }
-    const data = error.response?.data as { detail?: string; message?: string } | undefined
-    const msg = data?.detail || data?.message
+    const data = error.response?.data as { detail?: string; message?: string; error?: string } | undefined
+    const msg = data?.detail || data?.message || data?.error
+    const status = error.response?.status
     
     if (msg) {
       const lowerMsg = msg.toLowerCase()
-      if (lowerMsg.includes('incorrect username') || lowerMsg.includes('incorrect email') || lowerMsg.includes('incorrect password')) {
-        return 'Correo o contraseña incorrectos. Verifica tus datos.'
+      if (status === 401 && (lowerMsg.includes('incorrect username') || lowerMsg.includes('incorrect email') || lowerMsg.includes('incorrect password') || lowerMsg.includes('credenciales inválidas'))) {
+        return 'Correo o contraseña incorrectos.'
       }
-      if (lowerMsg.includes('inactive user')) {
-        return 'Esta cuenta está inactiva. Contacta al administrador.'
+      if (status === 403 && (lowerMsg.includes('inactive user') || lowerMsg.includes('desactivada') || lowerMsg.includes('eliminación'))) {
+        return 'Tu cuenta administrativa se encuentra inactiva o deshabilitada.'
+      }
+      if (status === 404 && !msg) {
+        return 'El recurso solicitado no existe o ya no está disponible.'
       }
       return msg
     }
-    return error.message || fallback
+    
+    if (status === 404) return 'El recurso solicitado no existe o ya no está disponible.'
+    if (status === 401) return 'Tu sesión expiró. Inicia sesión nuevamente.'
+    if (status === 403) return 'No tienes permisos para realizar esta acción.'
+    if (status && status >= 500) return 'Ocurrió un problema inesperado en el servidor. Intenta nuevamente.'
+    
+    return fallback
   }
   return fallback
 }
