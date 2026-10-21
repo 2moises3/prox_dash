@@ -122,3 +122,16 @@ export function useMergeDestination() {
     onError: (err) => toast.error(getApiErrorMessage(err, 'No se pudo fusionar los destinos')),
   })
 }
+
+export function useSetReviewHidden(destinationId: string | undefined) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ reviewId, hidden }: { reviewId: string; hidden: boolean }) =>
+      import('@/api/endpoints').then((m) => m.reviewsApi.setHidden(reviewId, hidden)),
+    onSuccess: (_, vars) => {
+      toast.success(vars.hidden ? 'Reseña oculta para los viajeros' : 'Reseña visible de nuevo')
+      queryClient.invalidateQueries({ queryKey: ['destinations', 'reviews', destinationId] })
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'No se pudo cambiar la visibilidad')),
+  })
+}

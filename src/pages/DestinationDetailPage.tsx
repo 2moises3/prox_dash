@@ -16,7 +16,6 @@ import {
   Power,
   PowerOff,
   GitMerge,
-  Copy,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -30,9 +29,19 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { MergeDestinationDialog } from '@/components/destinations/MergeDestinationDialog'
-import { useDestinationDetail, useUpdateDestination, useUpdateAbsaScores, useDestinationReviews, useSetDestinationStatus } from '@/hooks/useDestinations'
+import { useSetDestinationInEngine } from '@/hooks/useEngine'
+import { Switch } from '@/components/ui/switch'
+import { SelectField } from '@/components/ui/select'
+import { useDestinationDetail, useUpdateDestination, useUpdateAbsaScores, useDestinationReviews, useSetDestinationStatus, useSetReviewHidden } from '@/hooks/useDestinations'
 import { MediaManager } from '@/pages/MediaManagerPage'
-import type { AspectScores, DestinationDetail, DestinationUpdatePayload } from '@/types'
+import type { AspectScores } from '@/types'
+import {
+  CATEGORY_OPTIONS,
+  DIFFICULTY_LABELS,
+  buildInfoForm,
+  infoFormToPayload,
+  type InfoFormState,
+} from '@/utils/destinationForm'
 import { cn } from '@/lib/utils'
 
 const ASPECT_LABELS: Record<keyof AspectScores, string> = {
@@ -151,92 +160,23 @@ function AspectScoresEditor({
 /* Formulario de información (catálogo turístico completo)                      */
 /* -------------------------------------------------------------------------- */
 
-const INFO_TEXT_FIELDS = [
-  'name', 'official_name',
-  'department', 'province', 'district', 'city', 'region',
-  'category', 'type', 'subtype',
-  'description', 'experience_type', 'visitor_info_summary',
-  'activities_summary', 'accessibility_summary',
-  'official_source_name', 'official_source_code', 'official_source_url',
-  'secondary_source_name', 'secondary_source_code', 'secondary_source_url',
-  'map_source',
-] as const
-
-const INFO_NUM_FIELDS = [
-  'hierarchy', 'altitude_m', 'latitude', 'longitude', 'geofence_radius_m',
-] as const
-
-type InfoFormState = Record<
-  (typeof INFO_TEXT_FIELDS)[number] | (typeof INFO_NUM_FIELDS)[number],
-  string
->
-
-function buildInfoForm(data: DestinationDetail | null): InfoFormState {
-  const t = data?.tourism_info ?? null
-  const s = (v: unknown) => (v === null || v === undefined ? '' : String(v))
-  return {
-    name: s(data?.destination),
-    official_name: s(t?.official_name),
-    department: s(t?.department),
-    province: s(t?.province),
-    district: s(t?.district),
-    city: s(data?.city),
-    region: s(data?.region),
-    category: s(data?.category),
-    type: s(data?.type ?? t?.type),
-    subtype: s(data?.subtype ?? t?.subtype),
-    hierarchy: s(t?.hierarchy),
-    altitude_m: s(t?.altitude_m),
-    description: s(t?.description),
-    experience_type: s(t?.experience_type),
-    visitor_info_summary: s(t?.visitor_info_summary),
-    activities_summary: s(t?.activities_summary),
-    accessibility_summary: s(t?.accessibility_summary),
-    latitude: s(t?.latitude),
-    longitude: s(t?.longitude),
-    geofence_radius_m: s(t?.geofence_radius_m),
-    official_source_name: s(t?.official_source_name),
-    official_source_code: s(t?.official_source_code),
-    official_source_url: s(t?.official_source_url),
-    secondary_source_name: s(t?.secondary_source_name),
-    secondary_source_code: s(t?.secondary_source_code),
-    secondary_source_url: s(t?.secondary_source_url),
-    map_source: s(t?.map_source),
-  }
-}
-
-function infoFormToPayload(form: InfoFormState): DestinationUpdatePayload {
-  const payload: DestinationUpdatePayload = {}
-  for (const k of INFO_TEXT_FIELDS) {
-    payload[k] = form[k].trim()
-  }
-  for (const k of INFO_NUM_FIELDS) {
-    const raw = form[k].trim()
-    // Vacío → null (limpia el campo); valor inválido → se omite.
-    if (raw === '') {
-      payload[k] = null
-    } else {
-      const n = Number(raw)
-      if (!Number.isNaN(n)) payload[k] = n
-    }
-  }
-  return payload
-}
-
 export function DestinationDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { data, isLoading, isError, refetch } = useDestinationDetail(id)
   const updateMutation = useUpdateDestination()
   const updateAbsaMutation = useUpdateAbsaScores()
+  const setInEngine = useSetDestinationInEngine()
   const setStatus = useSetDestinationStatus()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [mergeOpen, setMergeOpen] = useState(false)
 
   const [searchParams] = useSearchParams()
-  const defaultTab = searchParams.get('tab') === 'multimedia' ? 'media' : 'info'
+  const tabParam = searchParams.get('tab')
+  const defaultTab = tabParam === 'multimedia' ? 'media' : tabParam === 'comments' ? 'comments' : 'info'
   const [activeTab, setActiveTab] = useState<'info' | 'media' | 'context' | 'tech' | 'comments'>(defaultTab as 'info' | 'media' | 'context' | 'tech' | 'comments')
 
   const { data: reviewsData, isLoading: isLoadingReviews } = useDestinationReviews(id)
+  const setReviewHidden = useSetReviewHidden(id)
 
   const [isEditingInfo, setIsEditingInfo] = useState(false)
   const [isEditingContext, setIsEditingContext] = useState(false)
@@ -326,7 +266,19 @@ export function DestinationDetailPage() {
         backTo="/destinos"
         backLabel="Volver a destinos"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <label
+              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700"
+              title="Si está activo, este destino puede aparecer en las recomendaciones de la app"
+            >
+              En el motor
+              <Switch
+                checked={Boolean(data.in_engine)}
+                disabled={setInEngine.isPending}
+                onCheckedChange={(v) => setInEngine.mutate({ id: data.destination_id, inEngine: v })}
+                aria-label="Incluir en el motor de recomendación"
+              />
+            </label>
             <Button
               variant="ghost"
               size="sm"
@@ -411,8 +363,8 @@ export function DestinationDetailPage() {
           {data.data_status === 'metrics_incomplete' && (
             <Badge variant="danger" className="bg-white/90 shadow-sm text-rose-700">Métricas incompletas</Badge>
           )}
-          {data.data_status === 'out_of_engine' && (
-            <Badge variant="neutral" className="bg-white/90 shadow-sm text-slate-700" title="No está en el universo actual del motor">Fuera del motor</Badge>
+          {data.in_engine === false && (
+            <Badge variant="neutral" className="bg-white/90 shadow-sm text-slate-700" title="No participa en las recomendaciones">Fuera del motor</Badge>
           )}
         </div>
       </div>
@@ -509,87 +461,105 @@ export function DestinationDetailPage() {
               <div className="space-y-6 lg:col-span-2">
                 {isEditingInfo ? (
                   <>
-                    {/* ── Datos básicos ── */}
+                    {/* ── Qué es ── */}
                     <Card>
                       <CardHeader><CardTitle>Datos básicos</CardTitle></CardHeader>
-                      <CardContent>
+                      <CardContent className="space-y-4">
                         <div className="grid gap-4 sm:grid-cols-2">
                           <EditField label="Nombre del destino" value={formData.name} onChange={(v) => setField('name', v)} />
-                          <EditField label="Nombre oficial" value={formData.official_name} onChange={(v) => setField('official_name', v)} />
-                          <EditField label="Categoría" value={formData.category} onChange={(v) => setField('category', v)} />
-                          <EditField label="Tipo" value={formData.type} onChange={(v) => setField('type', v)} />
-                          <EditField label="Subtipo" value={formData.subtype} onChange={(v) => setField('subtype', v)} />
-                          <EditField label="Jerarquía (1-4)" type="number" value={formData.hierarchy} onChange={(v) => setField('hierarchy', v)} />
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-slate-700">Categoría</label>
+                            <SelectField
+                              ariaLabel="Categoría"
+                              value={formData.category || '__none'}
+                              onValueChange={(v) => setField('category', v === '__none' ? '' : v)}
+                              options={[
+                                { label: 'Sin definir', value: '__none' },
+                                ...(formData.category && !CATEGORY_OPTIONS.includes(formData.category)
+                                  ? [{ label: formData.category, value: formData.category }]
+                                  : []),
+                                ...CATEGORY_OPTIONS.map((c) => ({ label: c, value: c })),
+                              ]}
+                            />
+                          </div>
                         </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* ── Ubicación ── */}
-                    <Card>
-                      <CardHeader><CardTitle>Ubicación</CardTitle></CardHeader>
-                      <CardContent>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <EditField label="Departamento" value={formData.department} onChange={(v) => setField('department', v)} />
-                          <EditField label="Provincia" value={formData.province} onChange={(v) => setField('province', v)} />
-                          <EditField label="Distrito" value={formData.district} onChange={(v) => setField('district', v)} />
-                          <EditField label="Ciudad" value={formData.city} onChange={(v) => setField('city', v)} />
-                          <EditField label="Región" value={formData.region} onChange={(v) => setField('region', v)} />
-                          <EditField label="Altitud (m)" type="number" value={formData.altitude_m} onChange={(v) => setField('altitude_m', v)} />
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* ── Coordenadas ── */}
-                    <Card>
-                      <CardHeader><CardTitle>Coordenadas y geocerca</CardTitle></CardHeader>
-                      <CardContent>
-                        <div className="grid gap-4 sm:grid-cols-3">
-                          <EditField label="Latitud" type="number" value={formData.latitude} onChange={(v) => setField('latitude', v)} placeholder="-13.16" />
-                          <EditField label="Longitud" type="number" value={formData.longitude} onChange={(v) => setField('longitude', v)} placeholder="-72.54" />
-                          <EditField label="Radio geocerca (m)" type="number" value={formData.geofence_radius_m} onChange={(v) => setField('geofence_radius_m', v)} />
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* ── Descripción y experiencia ── */}
-                    <Card>
-                      <CardHeader><CardTitle>Descripción y experiencia</CardTitle></CardHeader>
-                      <CardContent className="space-y-4">
                         <div className="space-y-1.5">
                           <label className="text-xs font-medium text-slate-700">Descripción</label>
                           <Textarea rows={4} value={formData.description} onChange={(e) => setField('description', e.target.value)} />
                         </div>
-                        <EditField label="Tipo de experiencia" value={formData.experience_type} onChange={(v) => setField('experience_type', v)} />
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-medium text-slate-700">Resumen de información al visitante</label>
-                          <Textarea rows={3} value={formData.visitor_info_summary} onChange={(e) => setField('visitor_info_summary', e.target.value)} />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-medium text-slate-700">Resumen de actividades</label>
-                          <Textarea rows={3} value={formData.activities_summary} onChange={(e) => setField('activities_summary', e.target.value)} />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-medium text-slate-700">Resumen de accesibilidad</label>
-                          <Textarea rows={3} value={formData.accessibility_summary} onChange={(e) => setField('accessibility_summary', e.target.value)} />
-                        </div>
                       </CardContent>
                     </Card>
 
-                    {/* ── Fuentes oficiales ── */}
+                    {/* ── Dónde está ── */}
                     <Card>
-                      <CardHeader><CardTitle>Fuentes oficiales</CardTitle></CardHeader>
+                      <CardHeader><CardTitle>Ubicación</CardTitle></CardHeader>
                       <CardContent className="space-y-4">
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <EditField label="Fuente oficial (nombre)" value={formData.official_source_name} onChange={(v) => setField('official_source_name', v)} />
-                          <EditField label="Fuente oficial (código)" value={formData.official_source_code} onChange={(v) => setField('official_source_code', v)} />
+                        <div className="grid gap-4 sm:grid-cols-3">
+                          <EditField label="Ciudad base" value={formData.city} onChange={(v) => setField('city', v)} />
+                          <EditField label="Región" value={formData.region} onChange={(v) => setField('region', v)} />
+                          <EditField label="Altitud (m)" type="number" value={formData.altitude_m} onChange={(v) => setField('altitude_m', v)} />
                         </div>
-                        <EditField label="Fuente oficial (URL)" value={formData.official_source_url} onChange={(v) => setField('official_source_url', v)} placeholder="https://..." />
                         <div className="grid gap-4 sm:grid-cols-2">
-                          <EditField label="Fuente secundaria (nombre)" value={formData.secondary_source_name} onChange={(v) => setField('secondary_source_name', v)} />
-                          <EditField label="Fuente secundaria (código)" value={formData.secondary_source_code} onChange={(v) => setField('secondary_source_code', v)} />
+                          <EditField label="Latitud" type="number" value={formData.latitude} onChange={(v) => setField('latitude', v)} placeholder="-13.16" />
+                          <EditField label="Longitud" type="number" value={formData.longitude} onChange={(v) => setField('longitude', v)} placeholder="-72.54" />
                         </div>
-                        <EditField label="Fuente secundaria (URL)" value={formData.secondary_source_url} onChange={(v) => setField('secondary_source_url', v)} placeholder="https://..." />
-                        <EditField label="Fuente del mapa" value={formData.map_source} onChange={(v) => setField('map_source', v)} />
+                        <p className="text-[11px] text-slate-400">Copia las coordenadas del punto de acceso desde Google Maps (clic derecho sobre el mapa).</p>
+                      </CardContent>
+                    </Card>
+
+                    {/* ── Para decidir e ir ── */}
+                    <Card>
+                      <CardHeader><CardTitle>Información para el visitante</CardTitle></CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid gap-4 sm:grid-cols-3">
+                          <EditField label="Duración recomendada" value={formData.recommended_duration} onChange={(v) => setField('recommended_duration', v)} placeholder="Medio día" />
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-slate-700">Dificultad</label>
+                            <SelectField
+                              ariaLabel="Dificultad"
+                              value={formData.difficulty || '__none'}
+                              onValueChange={(v) => setField('difficulty', v === '__none' ? '' : v)}
+                              options={[
+                                { label: 'Sin definir', value: '__none' },
+                                { label: 'Fácil', value: 'facil' },
+                                { label: 'Moderada', value: 'moderada' },
+                                { label: 'Exigente', value: 'exigente' },
+                              ]}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-slate-700">Nivel de costo estimado</label>
+                            <SelectField
+                              ariaLabel="Nivel de costo estimado"
+                              value={formData.cost_level || '__none'}
+                              onValueChange={(v) => setField('cost_level', v === '__none' ? '' : v)}
+                              options={[
+                                { label: 'Sin definir', value: '__none' },
+                                { label: 'Bajo', value: 'bajo' },
+                                { label: 'Medio', value: 'medio' },
+                                { label: 'Alto', value: 'alto' },
+                              ]}
+                            />
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-slate-400">Dificultad y costo alimentan los filtros del buscador de la app. No afectan las recomendaciones.</p>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-slate-700">Cómo llegar</label>
+                          <Textarea rows={3} value={formData.how_to_get} onChange={(e) => setField('how_to_get', e.target.value)} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-slate-700">Qué hacer (actividades)</label>
+                          <Textarea rows={3} value={formData.activities_summary} onChange={(e) => setField('activities_summary', e.target.value)} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-slate-700">Antes de ir (consejos, horarios, entradas)</label>
+                          <Textarea rows={3} value={formData.visitor_info_summary} onChange={(e) => setField('visitor_info_summary', e.target.value)} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-slate-700">Accesibilidad</label>
+                          <Textarea rows={3} value={formData.accessibility_summary} onChange={(e) => setField('accessibility_summary', e.target.value)} />
+                        </div>
+                        <EditField label="Sitio oficial (para comprar entradas o ver horarios)" value={formData.official_website} onChange={(v) => setField('official_website', v)} placeholder="https://..." />
                       </CardContent>
                     </Card>
                   </>
@@ -598,14 +568,20 @@ export function DestinationDetailPage() {
                     {/* ── Vista de solo lectura ── */}
                     <Card>
                       <CardHeader><CardTitle>Datos básicos</CardTitle></CardHeader>
-                      <CardContent>
+                      <CardContent className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                           <Field label="Nombre del destino" value={data.destination} />
-                          <Field label="Nombre oficial" value={tourism?.official_name} />
                           <Field label="Categoría" value={data.category} />
-                          <Field label="Tipo" value={data.type ?? tourism?.type} />
-                          <Field label="Subtipo" value={data.subtype ?? tourism?.subtype} />
-                          <Field label="Jerarquía" value={tourism?.hierarchy != null ? String(tourism.hierarchy) : null} />
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1">Descripción</p>
+                          {tourism?.description ? (
+                            <p className="text-sm leading-relaxed text-slate-600">{tourism.description}</p>
+                          ) : (
+                            <p className="text-sm italic text-slate-400">
+                              Este destino aún no tiene una descripción registrada.
+                            </p>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -614,129 +590,64 @@ export function DestinationDetailPage() {
                       <CardHeader><CardTitle>Ubicación</CardTitle></CardHeader>
                       <CardContent>
                         <div className="grid grid-cols-2 gap-4">
-                          <Field label="Departamento" value={tourism?.department} />
-                          <Field label="Provincia" value={tourism?.province} />
-                          <Field label="Distrito" value={tourism?.district} />
-                          <Field label="Ciudad" value={data.city} />
+                          <Field label="Ciudad base" value={data.city} />
                           <Field label="Región" value={data.region} />
                           <Field label="Altitud (m)" value={tourism?.altitude_m != null ? String(tourism.altitude_m) : null} />
+                          <div />
                           <Field label="Latitud" value={tourism?.latitude != null ? String(tourism.latitude) : null} mono />
                           <Field label="Longitud" value={tourism?.longitude != null ? String(tourism.longitude) : null} mono />
-                          <Field label="Radio geocerca (m)" value={tourism?.geofence_radius_m != null ? String(tourism.geofence_radius_m) : null} />
                         </div>
+                        {tourism?.latitude != null && tourism?.longitude != null && (
+                          <a
+                            href={`https://www.google.com/maps?q=${tourism.latitude},${tourism.longitude}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-lake-600 hover:text-lake-700"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                            Ver en Google Maps
+                          </a>
+                        )}
                       </CardContent>
                     </Card>
 
                     <Card>
-                      <CardHeader><CardTitle>Descripción y experiencia</CardTitle></CardHeader>
+                      <CardHeader><CardTitle>Información para el visitante</CardTitle></CardHeader>
                       <CardContent className="space-y-4">
-                        <div>
-                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1">Descripción</p>
-                          {tourism?.description ? (
-                            <p className="text-sm leading-relaxed text-slate-600">{tourism.description}</p>
-                          ) : (
-                            <p className="text-sm italic text-slate-400">
-                              Este destino aún no tiene una descripción registrada en el catálogo turístico.
-                            </p>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <Field label="Tipo de experiencia" value={tourism?.experience_type} />
+                        <div className="grid grid-cols-3 gap-4">
+                          <Field label="Duración recomendada" value={tourism?.recommended_duration} />
+                          <Field label="Dificultad" value={tourism?.difficulty ? (DIFFICULTY_LABELS[tourism.difficulty] ?? tourism.difficulty) : null} />
+                          <Field label="Nivel de costo estimado" value={data.cost_level ? data.cost_level.charAt(0).toUpperCase() + data.cost_level.slice(1) : null} />
                         </div>
                         <div>
-                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1">Resumen de información al visitante</p>
-                          <p className="text-sm text-slate-600">{tourism?.visitor_info_summary || <span className="italic text-slate-400">Sin información</span>}</p>
+                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1">Cómo llegar</p>
+                          <p className="text-sm text-slate-600">{tourism?.how_to_get || <span className="italic text-slate-400">Sin información</span>}</p>
                         </div>
                         <div>
-                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1">Resumen de actividades</p>
+                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1">Qué hacer</p>
                           <p className="text-sm text-slate-600">{tourism?.activities_summary || <span className="italic text-slate-400">Sin información</span>}</p>
                         </div>
                         <div>
-                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1">Resumen de accesibilidad</p>
+                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1">Antes de ir</p>
+                          <p className="text-sm text-slate-600">{tourism?.visitor_info_summary || <span className="italic text-slate-400">Sin información</span>}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1">Accesibilidad</p>
                           <p className="text-sm text-slate-600">{tourism?.accessibility_summary || <span className="italic text-slate-400">Sin información</span>}</p>
                         </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader><CardTitle>Fuentes oficiales</CardTitle></CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-2 gap-4">
-                          <Field label="Fuente oficial" value={tourism?.official_source_name} />
-                          <Field label="Fuente oficial (código)" value={tourism?.official_source_code} />
-                          {tourism?.official_source_url ? (
-                            <div className="rounded-lg bg-slate-50 px-3 py-2">
-                              <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">URL oficial</p>
-                              <a
-                                href={tourism.official_source_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="mt-0.5 inline-flex items-center gap-1 text-sm font-medium text-lake-600 hover:text-lake-700"
-                              >
-                                <ExternalLink className="h-3.5 w-3.5" />
-                                Visitar enlace
-                              </a>
-                            </div>
-                          ) : (
-                            <Field label="URL oficial" value={null} />
-                          )}
-                          <Field label="Fuente secundaria" value={tourism?.secondary_source_name} />
-                          <Field label="Fuente secundaria (código)" value={tourism?.secondary_source_code} />
-                          {tourism?.secondary_source_url ? (
-                            <div className="rounded-lg bg-slate-50 px-3 py-2">
-                              <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">URL secundaria</p>
-                              <a
-                                href={tourism.secondary_source_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="mt-0.5 inline-flex items-center gap-1 text-sm font-medium text-lake-600 hover:text-lake-700"
-                              >
-                                <ExternalLink className="h-3.5 w-3.5" />
-                                Visitar enlace
-                              </a>
-                            </div>
-                          ) : (
-                            <Field label="URL secundaria" value={null} />
-                          )}
-                          {tourism?.map_source ? (
-                            <div className="rounded-lg bg-slate-50 px-3 py-2 col-span-2">
-                              <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Fuente del mapa</p>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                <a
-                                  href={tourism.map_source}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="truncate flex-1 text-sm font-medium text-lake-600 hover:text-lake-700"
-                                >
-                                  {tourism.map_source}
-                                </a>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  className="h-6 w-6 shrink-0 p-0" 
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(tourism.map_source!)
-                                    toast.success('Enlace copiado al portapapeles')
-                                  }}
-                                  title="Copiar enlace"
-                                >
-                                  <Copy className="h-3.5 w-3.5" />
-                                </Button>
-                                <a
-                                  href={tourism.map_source}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-slate-400 hover:bg-slate-200 hover:text-slate-600"
-                                  title="Abrir en nueva pestaña"
-                                >
-                                  <ExternalLink className="h-3.5 w-3.5" />
-                                </a>
-                              </div>
-                            </div>
-                          ) : (
-                            <Field label="Fuente del mapa" value={null} />
-                          )}
-                        </div>
+                        {tourism?.official_website ? (
+                          <a
+                            href={tourism.official_website}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-sm font-medium text-lake-600 hover:text-lake-700"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                            Sitio oficial
+                          </a>
+                        ) : (
+                          <Field label="Sitio oficial" value={null} />
+                        )}
                       </CardContent>
                     </Card>
                   </>
@@ -861,8 +772,23 @@ export function DestinationDetailPage() {
                       value={data.context?.crowd_level}
                       score={data.context?.crowd_score}
                     />
+                    {(() => {
+                      const w = (data.weather_detail ?? {}) as Record<string, number | string | null>
+                      const c = (data.crowd_detail ?? {}) as Record<string, number | string | null>
+                      const items = [
+                        typeof w.temp_prom === 'number' ? `${w.temp_prom.toFixed(1)} °C de temperatura media` : null,
+                        typeof w.pp === 'number' ? `${Math.round(w.pp)} mm de lluvia en el mes` : null,
+                        typeof c.visitantes_mes === 'number' ? `${Math.round(c.visitantes_mes).toLocaleString('es-PE')} visitantes en un mes típico` : null,
+                      ].filter(Boolean)
+                      return items.length ? (
+                        <ul className="space-y-1 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                          {items.map((t) => <li key={t as string}>{t}</li>)}
+                        </ul>
+                      ) : null
+                    })()}
                     <p className="mt-2 text-xs text-slate-400">
-                      Clima y aforo se calculan automáticamente desde los datos de la BD.
+                      Datos del mes {String((data.weather_detail as Record<string, unknown> | null)?.month_name ?? 'actual')} (tesis, Fase 4).
+                      Para cambiarlos, importa clima_scores.csv o aforo_scores.csv en «Importar datos».
                     </p>
                   </CardContent>
                 </Card>
@@ -883,11 +809,8 @@ export function DestinationDetailPage() {
                   <Field label="ID" value={data.destination_id} mono />
                   <Field label="Estado público" value={data.is_active ? 'Activo' : 'Inactivo'} />
                   <Field label="Estado de datos (data_status)" value={data.data_status || 'desconocido'} />
-                  <Field label="Pertenece al motor actual" value={data.data_status === 'out_of_engine' ? 'No' : 'Sí'} />
+                  <Field label="Participa en recomendaciones" value={data.in_engine ? 'Sí' : 'No'} />
                   <Field label="Categoría BD" value={data.category} />
-                  <Field label="Tipo" value={data.type} />
-                  <Field label="Subtipo" value={data.subtype} />
-                  <Field label="Experiencia" value={tourism?.experience_type} />
                   <Field label="Cant. Imágenes" value={`${gallery.length + (data.cover_image_url ? 1 : 0)}`} />
                   <Field label="Portada Configurada" value={data.cover_image_url ? "Sí" : "No"} />
                   <Field label="Galería Configurada" value={gallery.length > 0 ? "Sí" : "No"} />
@@ -922,7 +845,7 @@ export function DestinationDetailPage() {
                 ) : (
                   <div className="space-y-4">
                     {reviewsData.map((review) => (
-                      <div key={review.review_id} className="flex flex-col sm:flex-row gap-4 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
+                      <div key={review.review_id} className={`flex flex-col sm:flex-row gap-4 rounded-xl border p-4 ${review.is_hidden ? "border-rose-200 bg-rose-50/40 opacity-80" : (review.report_count ?? 0) > 0 ? "border-amber-200 bg-amber-50/40" : "border-slate-100 bg-slate-50/50"}`}>
                         {review.image_url ? (
                           <div className="h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-slate-200">
                             <img src={review.image_url} alt="Review" className="h-full w-full object-cover" />
@@ -940,8 +863,25 @@ export function DestinationDetailPage() {
                             <div>
                               <p className="font-medium text-slate-800 line-clamp-2">"{review.review_text}"</p>
                               <p className="text-xs text-slate-500 mt-1">
-                                Usuario ID: {review.user_id.slice(0, 8)}... • {review.processing_month || 'Fecha desconocida'}
+                                {review.author_name ?? 'Viajero'} · {review.user_id} • {review.processing_month || 'Fecha desconocida'}
                               </p>
+                              {((review.report_count ?? 0) > 0 || review.is_hidden) && (
+                                <div className="mt-2 flex flex-wrap items-center gap-2">
+                                  {(review.report_count ?? 0) > 0 && (
+                                    <Badge variant="warning">{review.report_count} reporte{review.report_count === 1 ? '' : 's'}</Badge>
+                                  )}
+                                  {review.is_hidden && <Badge variant="danger">Oculta para viajeros</Badge>}
+                                </div>
+                              )}
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                className="mt-2"
+                                loading={setReviewHidden.isPending}
+                                onClick={() => setReviewHidden.mutate({ reviewId: review.review_id, hidden: !review.is_hidden })}
+                              >
+                                {review.is_hidden ? 'Mostrar de nuevo' : 'Ocultar reseña'}
+                              </Button>
                             </div>
                             {review.image_url && (
                               <div className="flex items-center gap-1 shrink-0 rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">

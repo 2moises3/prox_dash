@@ -18,6 +18,8 @@ import type {
   DestinationMedia,
   DestinationSummary,
   DestinationUpdatePayload,
+  EngineConfig,
+  EngineStatus,
   LoginResponse,
   MediaItem,
   MediaType,
@@ -66,6 +68,9 @@ export const reviewsApi = {
   async forDestination(id: string): Promise<Review[]> {
     const { data } = await apiClient.get<ApiEnvelope<Review[]>>(`/reviews/destination/${id}`)
     return unwrap(data)
+  },
+  async setHidden(reviewId: string, hidden: boolean): Promise<void> {
+    await apiClient.patch(`/reviews/${reviewId}/hidden`, { hidden })
   },
 }
 
@@ -188,6 +193,10 @@ export const usersApi = {
     const { data } = await apiClient.patch<ApiEnvelope<AdminUser>>(`/admin/users/${userId}/status`, { is_active: isActive })
     return unwrap(data)
   },
+  async resetPassword(userId: string): Promise<import('@/types').PasswordResetResult> {
+    const { data } = await apiClient.post<ApiEnvelope<import('@/types').PasswordResetResult>>(`/admin/users/${userId}/reset-password`)
+    return unwrap(data)
+  },
   async deleteUser(userId: string, mode: DeleteUserMode): Promise<void> {
     await apiClient.delete(`/admin/users/${userId}`, { params: { mode } })
   },
@@ -210,6 +219,14 @@ export const usersApi = {
 export const metricsApi = {
   async overview(): Promise<MetricsOverview> {
     const { data } = await apiClient.get<ApiEnvelope<MetricsOverview>>('/admin/metrics/overview')
+    return unwrap(data)
+  },
+  async activity(limit = 6): Promise<import('@/types').ActivityItem[]> {
+    const { data } = await apiClient.get<ApiEnvelope<import('@/types').ActivityItem[]>>('/admin/metrics/activity', { params: { limit } })
+    return unwrap(data)
+  },
+  async priorities(): Promise<import('@/types').DashboardPriorities> {
+    const { data } = await apiClient.get<ApiEnvelope<import('@/types').DashboardPriorities>>('/admin/metrics/priorities')
     return unwrap(data)
   },
   async charts(): Promise<import('@/types').ChartData> {
@@ -242,6 +259,10 @@ export const announcementsApi = {
   },
   async remove(id: number): Promise<void> {
     await apiClient.delete(`/admin/announcements/${id}`)
+  },
+  async removeImage(id: number): Promise<Announcement> {
+    const { data } = await apiClient.delete<ApiEnvelope<Announcement>>(`/admin/announcements/${id}/image`)
+    return unwrap(data)
   },
   async uploadImage(id: number, file: File): Promise<Announcement> {
     const form = new FormData()
@@ -292,7 +313,7 @@ export const releasesApi = {
 
 /* ------------------------------- Importación ------------------------------ */
 
-export type ImportType = 'absa' | 'tags' | 'clima' | 'aforo'
+export type ImportType = 'absa' | 'tags' | 'clima' | 'aforo' | 'catalog'
 
 export interface ImportResult {
   type: ImportType
@@ -301,11 +322,56 @@ export interface ImportResult {
   scores_updated?: number
   records_updated?: number
   errors?: number
+  /** Primeros errores por fila (máx. 10), p. ej. "Fila 3: ...". */
+  error_samples?: string[]
+  warnings?: string[]
   status?: string
   message?: string
+  mode?: 'preview' | 'apply'
+  /** Destinos del archivo y qué les pasaría (evaluación) o qué les pasó (aplicación). */
+  destinations?: ImportDestination[]
+  summary?: { nuevos: number; cambian: number; sin_cambios: number }
+}
+
+export interface ImportDestination {
+  destination_id: string
+  destination: string
+  status: 'nuevo' | 'cambia' | 'sin_cambios'
 }
 
 export const importApi = {
+  /** Evalúa el archivo sin guardar nada. */
+  async preview(type: ImportType, file: File): Promise<ImportResult> {
+    const form = new FormData()
+    form.append('file', file)
+    const { data } = await apiClient.post<ApiEnvelope<ImportResult>>(`/admin/import/${type}/preview`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return unwrap(data)
+  },
+  /** Aplica el archivo. destinations vacío o undefined = todos. */
+  async apply(type: ImportType, file: File, destinations?: string[], createNew = true): Promise<ImportResult> {
+    const form = new FormData()
+    form.append('file', file)
+    if (destinations) form.append('destinations', destinations.join(','))
+    form.append('create_new', String(createNew))
+    const { data } = await apiClient.post<ApiEnvelope<ImportResult>>(`/admin/import/${type}`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return unwrap(data)
+  },
+  /** Descarga la ficha comercial actual como Excel (sirve de plantilla). */
+  async downloadCatalogTemplate(): Promise<void> {
+    const res = await apiClient.get('/admin/import/catalog/template', { responseType: 'blob' })
+    const url = URL.createObjectURL(res.data as Blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'ficha_destinos_proxvel.xlsx'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  },
   async upload(type: ImportType, file: File): Promise<ImportResult> {
     const form = new FormData()
     form.append('file', file)
@@ -330,5 +396,47 @@ export const systemApi = {
   async health(): Promise<HealthStatus> {
     const { data } = await apiClient.get<HealthStatus>('/health')
     return data
+  },
+}
+
+/* ------------------------------- Motor ------------------------------------ */
+
+export const engineApi = {
+  async status(): Promise<EngineStatus> {
+    const { data } = await apiClient.get<ApiEnvelope<EngineStatus>>('/admin/engine')
+    return unwrap(data)
+  },
+  async updateConfig(config: EngineConfig): Promise<EngineStatus> {
+    const { data } = await apiClient.put<ApiEnvelope<EngineStatus>>('/admin/engine/config', config)
+    return unwrap(data)
+  },
+  async resetConfig(): Promise<EngineStatus> {
+    const { data } = await apiClient.post<ApiEnvelope<EngineStatus>>('/admin/engine/config/reset')
+    return unwrap(data)
+  },
+  async setDestination(id: string, inEngine: boolean): Promise<{ destination_id: string; in_engine: boolean }> {
+    const { data } = await apiClient.patch<ApiEnvelope<{ destination_id: string; in_engine: boolean }>>(
+      `/admin/engine/destinations/${id}`,
+      { in_engine: inEngine },
+    )
+    return unwrap(data)
+  },
+}
+
+/* ------------------------- Contenido de destinos -------------------------- */
+
+export interface ContentLoadResult {
+  overwrite: boolean
+  destinations_in_file: number
+  destinations_updated: number
+  fields_written: number
+  missing_in_database: string[]
+}
+
+export const contentApi = {
+  /** Carga la ficha comercial desde el archivo de datos del servidor. */
+  async load(overwrite: boolean): Promise<ContentLoadResult> {
+    const { data } = await apiClient.post<ApiEnvelope<ContentLoadResult>>('/admin/destinations/content/load', { overwrite })
+    return unwrap(data)
   },
 }

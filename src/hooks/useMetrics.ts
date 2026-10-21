@@ -19,6 +19,24 @@ export function useChartMetrics() {
   })
 }
 
+export function useRecentActivity() {
+  return useQuery({
+    queryKey: ['metrics', 'activity'],
+    queryFn: () => metricsApi.activity(6),
+    staleTime: 60_000,
+    retry: 1,
+  })
+}
+
+export function useDashboardPriorities() {
+  return useQuery({
+    queryKey: ['metrics', 'priorities'],
+    queryFn: metricsApi.priorities,
+    staleTime: 60_000,
+    retry: 1,
+  })
+}
+
 export function useSystemHealth() {
   return useQuery({
     queryKey: ['system', 'health'],

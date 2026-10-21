@@ -97,11 +97,12 @@ export interface DestinationSummary {
   city: string | null
   category: string | null
   region: string | null
-  type: string | null
-  subtype: string | null
   cover_image_url: string | null
-  official_source_name: string | null
   is_active: boolean
+  /** Participa en las recomendaciones (independiente de is_active). */
+  in_engine?: boolean
+  /** Nivel de costo estimado (dato editorial; no entra al motor). */
+  cost_level?: string | null
   data_status?: string | null
 }
 
@@ -126,36 +127,20 @@ export interface ContextScores {
 }
 
 export interface TourismInfo {
-  official_name?: string | null
-  // Ubicación administrativa
-  department?: string | null
-  province?: string | null
-  district?: string | null
-  // Clasificación
-  type?: string | null
-  subtype?: string | null
-  hierarchy?: number | null
   altitude_m?: number | null
-  // Descripción / experiencia
   description?: string | null
-  experience_type?: string | null
-  visitor_info_summary?: string | null
   activities_summary?: string | null
+  visitor_info_summary?: string | null
   accessibility_summary?: string | null
-  // Geolocalización
+  /** Ej. "Medio día", "2 a 3 días". */
+  recommended_duration?: string | null
+  how_to_get?: string | null
+  /** facil | moderada | exigente */
+  difficulty?: string | null
+  official_website?: string | null
   latitude?: number | null
   longitude?: number | null
-  geofence_radius_m?: number | null
-  // Multimedia
   gallery_images?: string[]
-  // Fuentes
-  official_source_name?: string | null
-  official_source_code?: string | null
-  official_source_url?: string | null
-  secondary_source_name?: string | null
-  secondary_source_code?: string | null
-  secondary_source_url?: string | null
-  map_source?: string | null
 }
 
 export interface DestinationDetail extends DestinationSummary {
@@ -166,35 +151,26 @@ export interface DestinationDetail extends DestinationSummary {
   tourism_info: TourismInfo | null
 }
 
-/** Payload de actualización admin: cubre todos los campos editables del catálogo. */
+/** Payload de actualización admin: ficha comercial del destino. */
 export interface DestinationUpdatePayload {
   name?: string
-  official_name?: string
-  department?: string
-  province?: string
-  district?: string
+  /** bajo | medio | alto. Cadena vacía lo borra. */
+  cost_level?: string
+  /** facil | moderada | exigente. Cadena vacía lo borra. */
+  difficulty?: string
   city?: string
   region?: string
   category?: string
-  type?: string
-  subtype?: string
-  hierarchy?: number | null
   altitude_m?: number | null
   description?: string
-  experience_type?: string
-  visitor_info_summary?: string
   activities_summary?: string
+  visitor_info_summary?: string
   accessibility_summary?: string
+  recommended_duration?: string
+  how_to_get?: string
+  official_website?: string
   latitude?: number | null
   longitude?: number | null
-  geofence_radius_m?: number | null
-  official_source_name?: string
-  official_source_code?: string
-  official_source_url?: string
-  secondary_source_name?: string
-  secondary_source_code?: string
-  secondary_source_url?: string
-  map_source?: string
 }
 
 export interface ReviewAspectRating {
@@ -213,6 +189,11 @@ export interface Review {
   processing_month?: string | null
   aspect_ratings: ReviewAspectRating[]
   image_url?: string | null
+  /** Nombre corto del autor («Lucía P.»). */
+  author_name?: string | null
+  /** Veces que otros viajeros la reportaron (solo equipo). */
+  report_count?: number
+  is_hidden?: boolean
 }
 
 /* -------------------------------------------------------------------------- */
@@ -314,6 +295,12 @@ export interface Announcement {
   frequency_cap: number | null
   is_active: boolean
   audience: string
+  /** Solo para placement=destination_detail. null = todos los destinos. */
+  target_destination_id: string | null
+  target_destination_name: string | null
+  impressions: number
+  clicks: number
+  dismissals: number
   created_by: string | null
   created_at: string
   updated_at: string
@@ -331,7 +318,25 @@ export interface AnnouncementPayload {
   ends_at?: string | null
   duration_seconds: number
   priority: number
+  /** Veces que un mismo dispositivo ve el anuncio de inicio. 0 = cada vez que abre la app. */
+  frequency_cap: number | null
+  target_destination_id: string | null
   is_active: boolean
+}
+
+export interface ActivityItem {
+  type: 'user' | 'review' | 'media' | 'announcement' | 'release'
+  title: string
+  subtitle: string
+  at: string
+  link: string
+  destination_id?: string
+}
+
+export interface DashboardPriorities {
+  reviews_pending: number
+  destinations_out_of_engine: number
+  announcements_expiring_7d: number
 }
 
 export interface ChartData {
@@ -339,4 +344,46 @@ export interface ChartData {
   reviews_by_month: { month: string; reviews: number }[]
   destinations_by_category: { name: string; value: number }[]
   destinations_by_region: { name: string; value: number }[]
+}
+
+/* ------------------------------ Motor ------------------------------------- */
+
+export interface EngineConfig {
+  /** Peso de ABSA en la afinidad (tesis: 0.25). El resto va a intereses. */
+  alpha_absa: number
+  /** Peso del contexto clima/aforo en el score final (tesis: 0.30). */
+  beta_contexto: number
+  /** Peso del clima dentro del contexto (tesis: 0.5). */
+  w_clima: number
+  /** Peso del aforo dentro del contexto (tesis: 0.5). */
+  w_aforo: number
+}
+
+export interface EngineDestination {
+  destination_id: string
+  destination: string
+  region: string | null
+  is_active: boolean
+  in_engine: boolean
+  /** Cumple los datos mínimos para entrar al motor. */
+  eligible: boolean
+  missing: string[]
+  /** is_active + in_engine + eligible: aparece hoy en las recomendaciones. */
+  recommendable: boolean
+}
+
+export interface EngineStatus {
+  config: EngineConfig
+  defaults: EngineConfig
+  destinations: EngineDestination[]
+  counts: { total: number; in_engine: number; recommendable: number }
+}
+
+/** Respuesta de POST /admin/users/{id}/reset-password. La contraseña se entrega una sola vez. */
+export interface PasswordResetResult {
+  user_id: string
+  name: string | null
+  email: string
+  temporary_password: string
+  sessions_invalidated: boolean
 }

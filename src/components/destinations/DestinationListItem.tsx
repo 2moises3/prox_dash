@@ -78,7 +78,7 @@ export function DestinationListItem({ destination, index = 0 }: Props) {
           {destination.data_status === 'metrics_incomplete' && (
             <Badge variant="danger" className="shadow bg-rose-600 hover:bg-rose-700 text-[10px]">Métricas incompletas</Badge>
           )}
-          {destination.data_status === 'out_of_engine' && (
+          {destination.in_engine === false && (
             <Badge variant="neutral" className="shadow bg-slate-700 text-white hover:bg-slate-800 text-[10px]">Fuera del motor</Badge>
           )}
         </div>

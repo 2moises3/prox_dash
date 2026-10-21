@@ -62,6 +62,13 @@ export function useUpdateUserStatus() {
   })
 }
 
+export function useResetUserPassword() {
+  return useMutation({
+    mutationFn: (userId: string) => usersApi.resetPassword(userId),
+    // Sin onSuccess/toast con datos: la contraseña solo se muestra en el diálogo.
+  })
+}
+
 export function useDeleteUser() {
   const queryClient = useQueryClient()
   return useMutation({

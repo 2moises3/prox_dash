@@ -1,102 +1,76 @@
-import { FileSpreadsheet, UploadCloud, Info, CheckCircle2, Download } from 'lucide-react'
+import { useState } from 'react'
+import { CheckCircle2, Download } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { PageHeader } from '@/components/dashboard/PageHeader'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Tooltip } from '@/components/ui/tooltip'
-import { Badge } from '@/components/ui/badge'
+import { ImportWizard } from '@/components/import/ImportWizard'
+import { importApi } from '@/api/endpoints'
+import { getApiErrorMessage } from '@/api/apiClient'
 
 const EXPECTED_COLUMNS = [
-  { name: 'destination_id', desc: 'Identificador único (slug) del destino' },
-  { name: 'destination', desc: 'Nombre del destino turístico' },
-  { name: 'city', desc: 'Ciudad' },
-  { name: 'region', desc: 'Región / departamento' },
-  { name: 'category', desc: 'Categoría turística' },
-  { name: 'type', desc: 'Tipo' },
-  { name: 'subtype', desc: 'Subtipo' },
-  { name: 'official_source_name', desc: 'Fuente oficial (MINCETUR u otra)' },
+  { name: 'destination_id', desc: 'Identificador del destino (obligatorio). Si no existe y hay nombre, se crea inactivo.' },
+  { name: 'destination', desc: 'Nombre visible del destino' },
+  { name: 'city, region', desc: 'Ciudad base y región' },
+  { name: 'category', desc: 'Arqueología, Naturaleza, Museo o Recreación' },
+  { name: 'description', desc: 'Descripción del destino' },
+  { name: 'activities_summary', desc: 'Qué hacer' },
+  { name: 'visitor_info_summary', desc: 'Antes de ir (consejos, horarios, entradas)' },
+  { name: 'accessibility_summary', desc: 'Accesibilidad' },
+  { name: 'recommended_duration', desc: 'Ej. «Medio día», «2 a 3 días»' },
+  { name: 'how_to_get', desc: 'Cómo llegar' },
+  { name: 'official_website', desc: 'Sitio oficial (https://…)' },
+  { name: 'altitude_m, latitude, longitude', desc: 'Altitud y coordenadas (de Google Maps)' },
+  { name: 'difficulty', desc: 'facil, moderada o exigente' },
+  { name: 'cost_level', desc: 'bajo, medio o alto' },
 ]
 
-function downloadTemplate() {
-  const headers = EXPECTED_COLUMNS.map((c) => c.name).join(',')
-  const example = 'machu-picchu,Machu Picchu,Aguas Calientes,Cusco,Cultural,Arqueológico,Ciudadela Inca,MINCETUR'
-  const blob = new Blob([`${headers}\n${example}\n`], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'plantilla_destinos_proxvel.csv'
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
-}
-
 export function ExcelImportPage() {
+  const [downloading, setDownloading] = useState(false)
+
+  const download = async () => {
+    setDownloading(true)
+    try {
+      await importApi.downloadCatalogTemplate()
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'No se pudo descargar la plantilla'))
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   return (
     <div>
       <PageHeader
         title="Importar Excel"
-        description="Carga masiva de destinos turísticos desde una hoja de cálculo."
+        description="Actualiza la ficha de los destinos (descripción, ubicación, cómo llegar, costo…) desde una hoja de cálculo."
         actions={
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={downloadTemplate} leftIcon={<Download className="h-4 w-4" />}>
-              Descargar plantilla
-            </Button>
-            <Badge variant="warning">Importación · fase posterior</Badge>
-          </div>
+          <Button variant="outline" size="sm" onClick={() => void download()} loading={downloading} leftIcon={<Download className="h-4 w-4" />}>
+            Descargar ficha actual (Excel)
+          </Button>
         }
         backTo="/destinos"
         backLabel="Volver a destinos"
       />
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          {/* Dropzone deshabilitado */}
-          <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/60 px-6 py-16 text-center opacity-80">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-slate-300 shadow-soft">
-              <UploadCloud className="h-8 w-8" />
-            </div>
-            <p className="text-base font-semibold text-slate-700">
-              Arrastra tu archivo .xlsx aquí
-            </p>
-            <p className="mt-1 max-w-md text-sm text-slate-500">
-              La importación masiva por Excel está <strong>planificada para una fase
-              posterior</strong>. Por ahora, agrega destinos individualmente desde
-              «Nuevo destino» en el catálogo.
-            </p>
-            <Tooltip content="Requiere el endpoint POST /admin/destinations/import">
-              <span className="mt-5 inline-block">
-                <Button disabled variant="primary" leftIcon={<FileSpreadsheet className="h-4 w-4" />}>
-                  Seleccionar archivo
-                </Button>
-              </span>
-            </Tooltip>
-          </div>
-
-          <Card className="mt-6 border-lake-100 bg-lake-50/40">
-            <CardContent className="flex gap-3 p-5">
-              <Info className="h-5 w-5 shrink-0 text-lake-600" />
-              <div className="text-sm text-slate-600">
-                <p className="font-semibold text-slate-800">Endpoints backend necesarios</p>
-                <ul className="mt-2 space-y-1">
-                  <li>
-                    <Badge variant="outline">POST</Badge> /api/v1/admin/destinations/import
-                    {' '}— recibe el archivo, valida y devuelve un resumen previo.
-                  </li>
-                  <li>
-                    <Badge variant="outline">POST</Badge>{' '}
-                    /api/v1/admin/destinations/import/confirm — confirma la inserción.
-                  </li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="space-y-4 lg:col-span-2">
+          <ImportWizard
+            type="catalog"
+            title="Ficha de los destinos"
+            description="Una fila por destino. Las celdas vacías no borran lo que ya hay; las que traen valor lo reemplazan."
+            columns="destination_id, destination, city, region, category, description, … (ver la lista de la derecha)"
+          />
+          <p className="text-xs text-slate-500">
+            Consejo: descarga la ficha actual, edítala en Excel y vuelve a subirla. Así no se pierde ningún dato y solo
+            cambian las celdas que modificaste.
+          </p>
         </div>
 
-        {/* Columnas esperadas */}
         <Card>
           <CardHeader>
-            <CardTitle>Columnas esperadas</CardTitle>
+            <CardTitle>Columnas</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {EXPECTED_COLUMNS.map((col) => (

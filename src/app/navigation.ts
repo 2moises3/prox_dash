@@ -2,8 +2,10 @@ import {
   LayoutDashboard,
   MapPinned,
   Megaphone,
+  Sparkles,
   Users,
   Settings,
+  ShieldCheck,
   Smartphone,
   Upload,
   type LucideIcon,
@@ -30,6 +32,7 @@ export const navSections: NavSection[] = [
       { to: '/', label: 'Resumen', icon: LayoutDashboard, end: true },
       { to: '/destinos', label: 'Destinos turísticos', icon: MapPinned },
       { to: '/anuncios', label: 'Anuncios internos', icon: Megaphone },
+      { to: '/motor', label: 'Motor de recomendación', icon: Sparkles },
     ],
   },
   {
@@ -39,6 +42,7 @@ export const navSections: NavSection[] = [
       { to: '/importar-datos', label: 'Importar datos', icon: Upload },
       { to: '/versiones', label: 'Versiones', icon: Smartphone },
       { to: '/configuracion', label: 'Configuración', icon: Settings },
+      { to: '/privacidad', label: 'Privacidad y legal', icon: ShieldCheck },
     ],
   },
 ]

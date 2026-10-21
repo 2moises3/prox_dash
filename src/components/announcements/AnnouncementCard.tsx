@@ -1,25 +1,32 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarClock, Pencil, Trash2, Timer, ArrowUpNarrowWide } from 'lucide-react'
+import { ArrowUpNarrowWide, CalendarClock, Eye, MapPin, MousePointerClick, Pencil, Repeat, Trash2, Timer, X } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
 import { useAnnouncementMutations } from '@/hooks/useAnnouncements'
+import { useDestinations } from '@/hooks/useDestinations'
 import {
   PLACEMENT_LABELS,
   STATUS_BADGE,
   STATUS_LABELS,
   TEMPLATE_GRADIENTS,
   TEMPLATE_LABELS,
+  describeCta,
 } from '@/utils/announcements'
 import { formatDate } from '@/utils/format'
 import type { Announcement } from '@/types'
 
 export function AnnouncementCard({ announcement: a }: { announcement: Announcement }) {
   const { update, remove } = useAnnouncementMutations()
+  const destinations = useDestinations()
+  const destinationName = (id: string) => destinations.data?.find((d) => d.destination_id === id)?.destination
   const [confirmOpen, setConfirmOpen] = useState(false)
+
+  // Tasa de clics: clics / vistas (como reportan Firebase In-App Messaging y similares).
+  const ctr = a.impressions > 0 ? Math.round((a.clicks / a.impressions) * 1000) / 10 : null
 
   const handleToggle = (checked: boolean) => {
     update.mutate({ id: a.id, payload: { is_active: checked } })
@@ -53,15 +60,47 @@ export function AnnouncementCard({ announcement: a }: { announcement: Announceme
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
           <span className="inline-flex items-center gap-1">
             <CalendarClock className="h-3.5 w-3.5" />
-            {formatDate(a.starts_at)} → {formatDate(a.ends_at)}
+            {!a.starts_at && !a.ends_at
+              ? 'Sin fechas: visible mientras esté activo'
+              : `${a.starts_at ? formatDate(a.starts_at) : 'Desde ya'} → ${a.ends_at ? formatDate(a.ends_at) : 'sin fecha de fin'}`}
           </span>
-          <span className="inline-flex items-center gap-1">
-            <Timer className="h-3.5 w-3.5" />
-            {a.duration_seconds}s
-          </span>
+          {a.placement === 'home_top' ? (
+            <span className="inline-flex items-center gap-1">
+              <Timer className="h-3.5 w-3.5" />
+              Rota cada {a.duration_seconds}s
+            </span>
+          ) : null}
+          {a.placement === 'app_start' ? (
+            <span className="inline-flex items-center gap-1">
+              <Repeat className="h-3.5 w-3.5" />
+              {a.frequency_cap ? `Máx. ${a.frequency_cap} ${a.frequency_cap === 1 ? 'vez' : 'veces'} por viajero` : 'Cada vez que abre la app'}
+            </span>
+          ) : null}
+          {a.placement === 'destination_detail' ? (
+            <span className="inline-flex items-center gap-1">
+              <MapPin className="h-3.5 w-3.5" />
+              {a.target_destination_name ?? 'Todos los destinos'}
+            </span>
+          ) : null}
           <span className="inline-flex items-center gap-1">
             <ArrowUpNarrowWide className="h-3.5 w-3.5" />
             Prioridad {a.priority}
+          </span>
+          <span>{describeCta(a.cta_url, destinationName)}</span>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium text-slate-600">
+          <span className="inline-flex items-center gap-1" title="Veces que se mostró en la app">
+            <Eye className="h-3.5 w-3.5 text-slate-400" />
+            {a.impressions.toLocaleString('es-PE')} vistas
+          </span>
+          <span className="inline-flex items-center gap-1" title="Toques en el botón">
+            <MousePointerClick className="h-3.5 w-3.5 text-slate-400" />
+            {a.clicks.toLocaleString('es-PE')} clics{ctr !== null ? ` (${ctr}%)` : ''}
+          </span>
+          <span className="inline-flex items-center gap-1" title="Veces que el viajero lo cerró">
+            <X className="h-3.5 w-3.5 text-slate-400" />
+            {a.dismissals.toLocaleString('es-PE')} cerrados
           </span>
         </div>
       </div>

@@ -66,5 +66,14 @@ export function useAnnouncementMutations() {
     onError: (err) => toast.error(getApiErrorMessage(err, 'No se pudo subir la imagen')),
   })
 
-  return { create, update, remove, uploadImage }
+  const removeImage = useMutation({
+    mutationFn: (id: number) => announcementsApi.removeImage(id),
+    onSuccess: () => {
+      toast.success('Imagen quitada')
+      invalidate()
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'No se pudo quitar la imagen')),
+  })
+
+  return { create, update, remove, uploadImage, removeImage }
 }

@@ -192,6 +192,9 @@ export function LoginPage() {
         <p className="mt-6 text-center text-[13px] leading-relaxed text-[#64748B]">
           Acceso exclusivo para el equipo administrativo.<br className="hidden sm:block" /> El registro público está deshabilitado.
         </p>
+        <p className="mt-3 text-center text-xs text-[#64748B]">
+          Datos personales: <a className="underline" href="mailto:soporte@m3biznovatech.com">soporte@m3biznovatech.com</a>
+        </p>
       </div>
     </div>
   )

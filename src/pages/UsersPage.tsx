@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Users, ShieldCheck, Power, PowerOff, Info, Search, UserPlus, Trash2, Clock, XCircle } from 'lucide-react'
+import { Users, ShieldCheck, Power, PowerOff, Info, Search, UserPlus, Trash2, Clock, XCircle, KeyRound } from 'lucide-react'
 
 import { PageHeader } from '@/components/dashboard/PageHeader'
 import { Badge } from '@/components/ui/badge'
@@ -14,6 +14,7 @@ import { CreateUserDialog } from '@/components/users/CreateUserDialog'
 import { DeleteUserDialog } from '@/components/users/DeleteUserDialog'
 import { UserDetailsDialog } from '@/components/users/UserDetailsDialog'
 import { ChangeRoleDialog } from '@/components/users/ChangeRoleDialog'
+import { ResetPasswordDialog } from '@/components/users/ResetPasswordDialog'
 import { useAuth } from '@/auth/useAuth'
 import { useUsers, useUpdateUserStatus, useProcessDeletions, useCancelDeletion } from '@/hooks/useUsers'
 import type { AdminUser, UserRole } from '@/types'
@@ -79,6 +80,7 @@ export function UsersPage() {
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null)
   const [detailsTarget, setDetailsTarget] = useState<string | null>(null)
   const [roleTarget, setRoleTarget] = useState<AdminUser | null>(null)
+  const [resetTarget, setResetTarget] = useState<AdminUser | null>(null)
 
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
@@ -304,6 +306,18 @@ export function UsersPage() {
                             </Button>
                           )}
 
+                          {!isSelf && u.user_id !== 'ANON_DELETED' && (u.account_status === 'active' || u.account_status === 'disabled') && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Restablecer contraseña"
+                              onClick={() => setResetTarget(u)}
+                              className="text-slate-500 hover:text-gold-700"
+                            >
+                              <KeyRound className="h-4 w-4" />
+                            </Button>
+                          )}
+
                           {u.account_status !== 'deleted' && (
                             <Button
                               variant="ghost"
@@ -386,6 +400,12 @@ export function UsersPage() {
         open={roleTarget !== null}
         onOpenChange={(o) => { if (!o) setRoleTarget(null) }}
         user={roleTarget}
+      />
+
+      <ResetPasswordDialog
+        open={resetTarget !== null}
+        onOpenChange={(o) => { if (!o) setResetTarget(null) }}
+        user={resetTarget}
       />
     </div>
   )

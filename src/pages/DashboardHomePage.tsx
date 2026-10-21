@@ -19,6 +19,10 @@ import {
   Lightbulb,
   Eye,
   EyeOff,
+  UserPlus,
+  Smartphone,
+  Sparkles,
+  CalendarClock,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -39,7 +43,9 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ErrorState } from '@/components/feedback/ErrorState'
-import { useMetricsOverview, useSystemHealth, useChartMetrics } from '@/hooks/useMetrics'
+import { useMetricsOverview, useSystemHealth, useChartMetrics, useRecentActivity, useDashboardPriorities } from '@/hooks/useMetrics'
+import { formatRelative } from '@/utils/format'
+import type { ActivityItem } from '@/types'
 import { useDestinations } from '@/hooks/useDestinations'
 import { cn } from '@/lib/utils'
 
@@ -52,6 +58,11 @@ export function DashboardHomePage() {
   const m = metricsQuery.data
   const c = chartsQuery.data
   const destinations = destinationsQuery.data || []
+  const activityQuery = useRecentActivity()
+  const prioritiesQuery = useDashboardPriorities()
+  const activity = activityQuery.data ?? []
+  const coverOf = (id?: string) => (id ? destinations.find((d) => d.destination_id === id)?.cover_image_url : null)
+  const pr = prioritiesQuery.data
 
   // Derived metrics
   const totalDestinations = m?.destinations.total || 0
@@ -267,16 +278,25 @@ export function DashboardHomePage() {
                 link="/destinos?filter=no_media"
               />
               <PriorityItem
-                icon={<CheckCircle2 className="h-4 w-4 text-purple-600" />}
+                icon={<MessageSquare className="h-4 w-4 text-purple-600" />}
                 iconBg="bg-purple-50"
-                title="3 módulos pendientes"
-                subtitle="Completar configuración"
+                title={`${pr?.reviews_pending ?? 0} reseña${pr?.reviews_pending === 1 ? '' : 's'} por procesar`}
+                subtitle="Tras analizarlas, importa la nueva matriz ABSA"
+                link="/importar-datos"
               />
               <PriorityItem
-                icon={<BarChart3 className="h-4 w-4 text-blue-600" />}
+                icon={<Sparkles className="h-4 w-4 text-blue-600" />}
                 iconBg="bg-blue-50"
-                title="Analítica no instrumentada"
-                subtitle="Pendiente de implementación"
+                title={`${pr?.destinations_out_of_engine ?? 0} destino${pr?.destinations_out_of_engine === 1 ? '' : 's'} fuera del motor`}
+                subtitle="Visibles en la app pero sin recomendaciones"
+                link="/motor"
+              />
+              <PriorityItem
+                icon={<CalendarClock className="h-4 w-4 text-amber-600" />}
+                iconBg="bg-amber-50"
+                title={`${pr?.announcements_expiring_7d ?? 0} anuncio${pr?.announcements_expiring_7d === 1 ? '' : 's'} por vencer`}
+                subtitle="Terminan en los próximos 7 días"
+                link="/anuncios"
               />
             </div>
           </CardContent>
@@ -335,36 +355,11 @@ export function DashboardHomePage() {
           </CardHeader>
           <CardContent className="pt-4">
             <div className="relative border-l-2 border-slate-100 ml-3 space-y-6">
-              {destinations.slice(0, 3).map((dest, i) => (
-                <div key={dest.destination_id} className="relative pl-6">
-                  {/* Timeline dot */}
-                  <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-white border-2 border-slate-200">
-                    <div className="absolute inset-0.5 rounded-full bg-navy-600"></div>
-                  </div>
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-slate-100 border border-slate-200">
-                        {dest.cover_image_url ? (
-                          <img src={dest.cover_image_url} alt={dest.destination} className="h-full w-full object-cover" />
-                        ) : (
-                          <MapPin className="h-full w-full p-2.5 text-slate-300" />
-                        )}
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-bold text-slate-800">{dest.destination}</h4>
-                        <p className="text-xs text-slate-500">
-                          {i === 0 ? 'Portada actualizada' : i === 1 ? 'Contenido editado' : 'Multimedia pendiente'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-xs text-slate-400 font-medium">
-                      {i === 0 ? 'Hoy, 10:24 a. m.' : i === 1 ? 'Ayer, 4:15 p. m.' : 'Ayer, 11:08 a. m.'}
-                    </div>
-                  </div>
-                </div>
+              {activity.map((item, i) => (
+                <ActivityRow key={`${item.type}-${item.at}-${i}`} item={item} cover={coverOf(item.destination_id)} />
               ))}
-              {destinations.length === 0 && (
-                <p className="pl-6 text-sm text-slate-400 italic">No hay actividad reciente.</p>
+              {!activityQuery.isLoading && activity.length === 0 && (
+                <p className="pl-6 text-sm text-slate-400 italic">Todavía no hay actividad.</p>
               )}
             </div>
           </CardContent>
@@ -541,6 +536,36 @@ interface PriorityItemProps {
   title: string
   subtitle: string
   link?: string
+}
+
+const ACTIVITY_ICONS: Record<ActivityItem['type'], React.ReactNode> = {
+  user: <UserPlus className="h-full w-full p-2.5 text-emerald-500" />,
+  review: <MessageSquare className="h-full w-full p-2.5 text-purple-500" />,
+  media: <ImageIcon className="h-full w-full p-2.5 text-sky-500" />,
+  announcement: <Megaphone className="h-full w-full p-2.5 text-amber-500" />,
+  release: <Smartphone className="h-full w-full p-2.5 text-slate-500" />,
+}
+
+function ActivityRow({ item, cover }: { item: ActivityItem; cover?: string | null }) {
+  return (
+    <Link to={item.link} className="relative block pl-6 group">
+      <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-white border-2 border-slate-200">
+        <div className="absolute inset-0.5 rounded-full bg-navy-600"></div>
+      </div>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-slate-100 border border-slate-200">
+            {cover ? <img src={cover} alt="" className="h-full w-full object-cover" /> : ACTIVITY_ICONS[item.type]}
+          </div>
+          <div className="min-w-0">
+            <h4 className="truncate text-sm font-bold text-slate-800 group-hover:text-navy-700">{item.title}</h4>
+            <p className="text-xs text-slate-500">{item.subtitle}</p>
+          </div>
+        </div>
+        <div className="shrink-0 text-xs text-slate-400 font-medium">{formatRelative(item.at)}</div>
+      </div>
+    </Link>
+  )
 }
 
 function PriorityItem({ icon, iconBg, title, subtitle, link }: PriorityItemProps) {
