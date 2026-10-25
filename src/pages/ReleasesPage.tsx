@@ -237,13 +237,14 @@ export function ReleasesPage() {
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               />
               <p className="mt-2 text-[11px] text-slate-400">
-                Subir la APK la almacena en Cloudinary (raw). Si tu APK es grande, deja el archivo vacío y pega una URL pública abajo.
+                Cloudinary puede rechazar APKs grandes. Para PROXVEL, sube el APK como asset de un GitHub Release y pega su URL pública abajo.
               </p>
             </div>
 
             <div>
               <Label htmlFor="v-url">…o URL pública del APK</Label>
-              <Input id="v-url" value={apkUrl} onChange={(e) => setApkUrl(e.target.value)} placeholder="https://…/app-release.apk" disabled={file !== null} />
+              <Input id="v-url" value={apkUrl} onChange={(e) => setApkUrl(e.target.value)} placeholder="https://github.com/…/releases/download/v1.0.0/PROXVEL.apk" disabled={file !== null} />
+              <p className="mt-1 text-[11px] text-slate-400">Usa la URL de esta versión, no /releases/latest/download/.</p>
             </div>
 
             {uploadPct !== null && (
