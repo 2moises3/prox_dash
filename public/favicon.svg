@@ -1,11 +1,38 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#1bb364" />
-      <stop offset="1" stop-color="#2477eb" />
+    <linearGradient id="proxvel-gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F5B938" />
+      <stop offset="50%" stop-color="#D89B1F" />
+      <stop offset="100%" stop-color="#BA7E0E" />
     </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="1" stdDeviation="0.8" flood-opacity="0.22" flood-color="#4A3000" />
+    </filter>
   </defs>
-  <rect width="64" height="64" rx="16" fill="url(#g)" />
-  <path d="M20 44V20h11c5.5 0 9 3.2 9 8s-3.5 8-9 8h-5v8h-6Zm6-14h4.4c2.2 0 3.6-1.2 3.6-3s-1.4-3-3.6-3H26v6Z" fill="white" />
-  <circle cx="44" cy="22" r="4" fill="#d0a55e" />
+
+  <!-- Cuadrito dorado PROXVEL con esquinas redondeadas -->
+  <rect width="64" height="64" rx="16" fill="url(#proxvel-gold)" />
+
+  <!-- Isotipo Brújula en Blanco Puro con sombra sutil de profundidad -->
+  <g filter="url(#shadow)" fill="#FFFFFF">
+    <!-- Anillo exterior de la brújula -->
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M32 45C39.1797 45 45 39.1797 45 32C45 24.8203 39.1797 19 32 19C24.8203 19 19 24.8203 19 32C19 39.1797 24.8203 45 32 45ZM32 42C37.5228 42 42 37.5228 42 32C42 26.4772 37.5228 22 32 22C26.4772 22 22 26.4772 22 32C22 37.5228 26.4772 42 32 42Z" />
+    
+    <!-- Puntas cardinales principales (Norte, Sur, Este, Oeste) -->
+    <polygon points="32,9 29,20 35,20" />
+    <polygon points="32,55 35,44 29,44" />
+    <polygon points="55,32 44,29 44,35" />
+    <polygon points="9,32 20,35 20,29" />
+    
+    <!-- Puntas intermedias (NE, SE, SO, NO) -->
+    <polygon points="48,16 39,22 42,25" />
+    <polygon points="48,48 42,39 39,42" />
+    <polygon points="16,48 25,42 22,39" />
+    <polygon points="16,16 22,25 25,22" />
+
+    <!-- Aguja náutica central orientada en diagonal hacia el destino -->
+    <polygon points="43.5,20.5 32,30 30,32 20.5,43.5 30,32 32,30" />
+    <circle cx="32" cy="32" r="3.2" fill="#D89B1F" />
+    <circle cx="32" cy="32" r="1.5" fill="#FFFFFF" />
+  </g>
 </svg>
