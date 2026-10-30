@@ -9,7 +9,7 @@ const INFO_TEXT_FIELDS = [
 ] as const
 
 const INFO_NUM_FIELDS = [
-  'altitude_m', 'latitude', 'longitude',
+  'altitude_m', 'latitude', 'longitude', 'geofence_radius_meters', 'min_dwell_minutes',
 ] as const
 
 /** Categorías comerciales (lista cerrada; alimenta el filtro del buscador de la app). */
@@ -46,6 +46,8 @@ export function buildInfoForm(data: DestinationDetail | null): InfoFormState {
     altitude_m: s(t?.altitude_m),
     latitude: s(t?.latitude),
     longitude: s(t?.longitude),
+    geofence_radius_meters: s(t?.geofence_radius_meters ?? 250),
+    min_dwell_minutes: s(t?.min_dwell_minutes ?? 20),
   }
 }
 

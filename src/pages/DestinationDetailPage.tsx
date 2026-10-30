@@ -10,7 +10,6 @@ import {
   Pencil,
   Save,
   X,
-  Info,
   Star,
   MessageSquare,
   Power,
@@ -32,7 +31,7 @@ import { MergeDestinationDialog } from '@/components/destinations/MergeDestinati
 import { useSetDestinationInEngine } from '@/hooks/useEngine'
 import { Switch } from '@/components/ui/switch'
 import { SelectField } from '@/components/ui/select'
-import { useDestinationDetail, useUpdateDestination, useUpdateAbsaScores, useDestinationReviews, useSetDestinationStatus, useSetReviewHidden } from '@/hooks/useDestinations'
+import { useDestinationDetail, useUpdateDestination, useDestinationReviews, useSetDestinationStatus, useSetReviewHidden } from '@/hooks/useDestinations'
 import { MediaManager } from '@/pages/MediaManagerPage'
 import type { AspectScores } from '@/types'
 import {
@@ -51,7 +50,7 @@ const ASPECT_LABELS: Record<keyof AspectScores, string> = {
   atencion_servicio: 'Atención y servicio',
   atractivos: 'Atractivos',
   clima: 'Clima',
-  costos: 'Costos',
+  costos: 'Valoración de precios',
   gastronomia: 'Gastronomía',
   limpieza: 'Limpieza',
   seguridad: 'Seguridad',
@@ -74,7 +73,7 @@ function AspectScoresCard({ scores }: { scores: AspectScores | null }) {
       <CardContent>
         {!hasRealScores ? (
           <p className="text-sm text-slate-400">
-            Sin puntajes ABSA disponibles. Usa «Editar contexto» para configurarlos.
+            Sin puntajes científicos disponibles para este destino.
           </p>
         ) : (
           <div className="space-y-3">
@@ -111,51 +110,6 @@ function AspectScoresCard({ scores }: { scores: AspectScores | null }) {
   )
 }
 
-type AbsaFormState = Record<keyof AspectScores, number>
-
-function buildAbsaForm(scores: AspectScores | null): AbsaFormState {
-  const defaults = Object.fromEntries(
-    (Object.keys(ASPECT_LABELS) as (keyof AspectScores)[]).map((k) => [
-      k,
-      Math.round(((scores?.[k] ?? 0.5) as number) * 100),
-    ]),
-  ) as AbsaFormState
-  return defaults
-}
-
-function AspectScoresEditor({
-  form,
-  onChange,
-}: {
-  form: AbsaFormState
-  onChange: (key: keyof AspectScores, pct: number) => void
-}) {
-  return (
-    <div className="space-y-4">
-      {(Object.keys(ASPECT_LABELS) as (keyof AspectScores)[]).map((key) => {
-        const pct = form[key]
-        return (
-          <div key={key}>
-            <div className="mb-1 flex items-center justify-between text-xs">
-              <span className="font-medium text-slate-700">{ASPECT_LABELS[key]}</span>
-              <span className="tabular-nums font-semibold text-jungle-700">{pct}%</span>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={1}
-              value={pct}
-              onChange={(e) => onChange(key, Number(e.target.value))}
-              className="w-full accent-jungle-600"
-            />
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
 /* -------------------------------------------------------------------------- */
 /* Formulario de información (catálogo turístico completo)                      */
 /* -------------------------------------------------------------------------- */
@@ -164,7 +118,6 @@ export function DestinationDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { data, isLoading, isError, refetch } = useDestinationDetail(id)
   const updateMutation = useUpdateDestination()
-  const updateAbsaMutation = useUpdateAbsaScores()
   const setInEngine = useSetDestinationInEngine()
   const setStatus = useSetDestinationStatus()
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -179,8 +132,6 @@ export function DestinationDetailPage() {
   const setReviewHidden = useSetReviewHidden(id)
 
   const [isEditingInfo, setIsEditingInfo] = useState(false)
-  const [isEditingContext, setIsEditingContext] = useState(false)
-  const [abssaForm, setAbsaForm] = useState<AbsaFormState>(() => buildAbsaForm(null))
 
   // Form states — todos los campos como string para los inputs; los numéricos
   // se convierten al guardar.
@@ -215,22 +166,6 @@ export function DestinationDetailPage() {
   const handleCancelInfo = () => {
     setIsEditingInfo(false)
     setFormData(buildInfoForm(data ?? null))
-  }
-
-  const startEditingContext = () => {
-    setAbsaForm(buildAbsaForm(data?.aspect_scores ?? null))
-    setIsEditingContext(true)
-  }
-
-  const handleSaveContext = () => {
-    if (!id) return
-    const scores = Object.fromEntries(
-      (Object.keys(abssaForm) as (keyof AspectScores)[]).map((k) => [k, abssaForm[k] / 100]),
-    ) as Record<keyof AspectScores, number>
-    updateAbsaMutation.mutate(
-      { id, scores },
-      { onSuccess: () => setIsEditingContext(false) },
-    )
   }
 
   if (isError) {
@@ -274,7 +209,7 @@ export function DestinationDetailPage() {
               En el motor
               <Switch
                 checked={Boolean(data.in_engine)}
-                disabled={setInEngine.isPending}
+                disabled={setInEngine.isPending || !data.scientific_version}
                 onCheckedChange={(v) => setInEngine.mutate({ id: data.destination_id, inEngine: v })}
                 aria-label="Incluir en el motor de recomendación"
               />
@@ -282,9 +217,10 @@ export function DestinationDetailPage() {
             <Button
               variant="ghost"
               size="sm"
+              disabled={Boolean(data.scientific_version)}
               onClick={() => setMergeOpen(true)}
               leftIcon={<GitMerge className="h-4 w-4" />}
-              title="Fusionar este destino con otro (para eliminar duplicados)"
+              title={data.scientific_version ? "El ID científico debe conservarse" : "Fusionar duplicados"}
             >
               Fusionar
             </Button>
@@ -492,7 +428,7 @@ export function DestinationDetailPage() {
 
                     {/* ── Dónde está ── */}
                     <Card>
-                      <CardHeader><CardTitle>Ubicación</CardTitle></CardHeader>
+                      <CardHeader><CardTitle>Ubicación y Geolocalización</CardTitle></CardHeader>
                       <CardContent className="space-y-4">
                         <div className="grid gap-4 sm:grid-cols-3">
                           <EditField label="Ciudad base" value={formData.city} onChange={(v) => setField('city', v)} />
@@ -503,7 +439,11 @@ export function DestinationDetailPage() {
                           <EditField label="Latitud" type="number" value={formData.latitude} onChange={(v) => setField('latitude', v)} placeholder="-13.16" />
                           <EditField label="Longitud" type="number" value={formData.longitude} onChange={(v) => setField('longitude', v)} placeholder="-72.54" />
                         </div>
-                        <p className="text-[11px] text-slate-400">Copia las coordenadas del punto de acceso desde Google Maps (clic derecho sobre el mapa).</p>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <EditField label="Radio de geocerca (metros)" type="number" value={formData.geofence_radius_meters} onChange={(v) => setField('geofence_radius_meters', v)} placeholder="250" />
+                          <EditField label="Permanencia mínima (minutos)" type="number" value={formData.min_dwell_minutes} onChange={(v) => setField('min_dwell_minutes', v)} placeholder="20" />
+                        </div>
+                        <p className="text-[11px] text-slate-400">El radio en metros y tiempo de permanencia determinan cuándo la app móvil detecta el ingreso al destino y certifica la visita en el Atlas del viajero.</p>
                       </CardContent>
                     </Card>
 
@@ -587,7 +527,7 @@ export function DestinationDetailPage() {
                     </Card>
 
                     <Card>
-                      <CardHeader><CardTitle>Ubicación</CardTitle></CardHeader>
+                      <CardHeader><CardTitle>Ubicación y Geolocalización</CardTitle></CardHeader>
                       <CardContent>
                         <div className="grid grid-cols-2 gap-4">
                           <Field label="Ciudad base" value={data.city} />
@@ -596,6 +536,8 @@ export function DestinationDetailPage() {
                           <div />
                           <Field label="Latitud" value={tourism?.latitude != null ? String(tourism.latitude) : null} mono />
                           <Field label="Longitud" value={tourism?.longitude != null ? String(tourism.longitude) : null} mono />
+                          <Field label="Radio de geocerca" value={tourism?.geofence_radius_meters != null ? `${tourism.geofence_radius_meters} m` : '250 m (por defecto)'} />
+                          <Field label="Permanencia mínima" value={tourism?.min_dwell_minutes != null ? `${tourism.min_dwell_minutes} min` : '20 min (por defecto)'} />
                         </div>
                         {tourism?.latitude != null && tourism?.longitude != null && (
                           <a
@@ -697,62 +639,11 @@ export function DestinationDetailPage() {
         {/* TAB CONTEXTO TURÍSTICO */}
         {activeTab === 'context' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-end gap-2">
-              {!isEditingContext ? (
-                <Button variant="outline" onClick={startEditingContext}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Editar puntajes ABSA
-                </Button>
-              ) : (
-                <>
-                  <Button
-                    variant="ghost"
-                    onClick={() => setIsEditingContext(false)}
-                    disabled={updateAbsaMutation.isPending}
-                  >
-                    <X className="mr-2 h-4 w-4" />
-                    Cancelar
-                  </Button>
-                  <Button onClick={handleSaveContext} disabled={updateAbsaMutation.isPending}>
-                    {updateAbsaMutation.isPending ? 'Guardando...' : (
-                      <>
-                        <Save className="mr-2 h-4 w-4" />
-                        Guardar puntajes
-                      </>
-                    )}
-                  </Button>
-                </>
-              )}
-            </div>
-
-            {isEditingContext && (
-              <div className="flex items-start gap-3 rounded-xl border border-lake-200 bg-lake-50/50 p-4 text-sm text-lake-800">
-                <Info className="mt-0.5 h-4 w-4 shrink-0" />
-                <p>
-                  Los puntajes van de <strong>0%</strong> (muy bajo) a <strong>100%</strong> (excelente).
-                  El motor IA usa estos valores para calcular la compatibilidad con el perfil del viajero.
-                  Destinos sin puntajes reales usan <strong>50%</strong> por defecto.
-                </p>
-              </div>
-            )}
+            <p className="text-sm text-slate-600">Datos científicos V3 de solo lectura. Precios representa valoración de reseñas, no tarifa de entrada.</p>
 
             <div className="grid gap-6 lg:grid-cols-3">
               <div className="space-y-6 lg:col-span-2">
-                {isEditingContext ? (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Editar Aspectos ABSA</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <AspectScoresEditor
-                        form={abssaForm}
-                        onChange={(key, pct) => setAbsaForm((prev) => ({ ...prev, [key]: pct }))}
-                      />
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <AspectScoresCard scores={data.aspect_scores} />
-                )}
+                <AspectScoresCard scores={data.aspect_scores} />
               </div>
               <div className="space-y-6">
                 <Card>
@@ -788,7 +679,7 @@ export function DestinationDetailPage() {
                     })()}
                     <p className="mt-2 text-xs text-slate-400">
                       Datos del mes {String((data.weather_detail as Record<string, unknown> | null)?.month_name ?? 'actual')} (tesis, Fase 4).
-                      Para cambiarlos, importa clima_scores.csv o aforo_scores.csv en «Importar datos».
+                      Estos datos pertenecen al snapshot científico. Para cambiarlos se publica una versión validada del motor.
                     </p>
                   </CardContent>
                 </Card>

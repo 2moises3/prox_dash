@@ -21,7 +21,7 @@ export function MergeDestinationDialog({ source, open, onOpenChange }: Props) {
   const merge = useMergeDestination()
   const [targetId, setTargetId] = useState<string>('')
 
-  const candidates = allDests.filter((d) => d.destination_id !== source.destination_id)
+  const candidates = allDests.filter((d) => d.destination_id !== source.destination_id && !d.scientific_version)
   const target = candidates.find((d) => d.destination_id === targetId)
   const selectOptions = candidates.map((d) => ({
     value: d.destination_id,

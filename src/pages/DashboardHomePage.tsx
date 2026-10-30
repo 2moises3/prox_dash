@@ -281,7 +281,7 @@ export function DashboardHomePage() {
                 icon={<MessageSquare className="h-4 w-4 text-purple-600" />}
                 iconBg="bg-purple-50"
                 title={`${pr?.reviews_pending ?? 0} reseña${pr?.reviews_pending === 1 ? '' : 's'} por procesar`}
-                subtitle="Tras analizarlas, importa la nueva matriz ABSA"
+                subtitle="Su análisis puede apoyar una futura versión científica"
                 link="/importar-datos"
               />
               <PriorityItem

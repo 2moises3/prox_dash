@@ -135,6 +135,7 @@ export function DestinationListItem({ destination, index = 0 }: Props) {
             title="Eliminar destino permanentemente"
             onClick={() => setDeleteConfirmOpen(true)}
             loading={deleteDest.isPending}
+            disabled={Boolean(destination.scientific_version)}
           >
             <Trash2 className="h-4 w-4" />
           </Button>

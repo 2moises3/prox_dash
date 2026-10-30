@@ -101,6 +101,7 @@ export interface DestinationSummary {
   is_active: boolean
   /** Participa en las recomendaciones (independiente de is_active). */
   in_engine?: boolean
+  scientific_version?: string | null
   /** Nivel de costo estimado (dato editorial; no entra al motor). */
   cost_level?: string | null
   data_status?: string | null
@@ -140,6 +141,8 @@ export interface TourismInfo {
   official_website?: string | null
   latitude?: number | null
   longitude?: number | null
+  geofence_radius_meters?: number | null
+  min_dwell_minutes?: number | null
   gallery_images?: string[]
 }
 
@@ -171,6 +174,8 @@ export interface DestinationUpdatePayload {
   official_website?: string
   latitude?: number | null
   longitude?: number | null
+  geofence_radius_meters?: number | null
+  min_dwell_minutes?: number | null
 }
 
 export interface ReviewAspectRating {
@@ -373,6 +378,10 @@ export interface EngineDestination {
 }
 
 export interface EngineStatus {
+  version: string
+  read_only: boolean
+  aspects: string[]
+  profile_weights: Record<string, Record<string, number>>
   config: EngineConfig
   defaults: EngineConfig
   destinations: EngineDestination[]
