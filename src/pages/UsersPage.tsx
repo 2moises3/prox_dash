@@ -33,9 +33,26 @@ const ROLE_FILTER_OPTIONS: SelectOption[] = [
 ]
 
 const STATUS_FILTER_OPTIONS: SelectOption[] = [
-  { value: 'all', label: 'Todos' },
+  { value: 'all', label: 'Todos los estados' },
   { value: 'active', label: 'Activos' },
-  { value: 'inactive', label: 'Inactivos' },
+  { value: 'disabled', label: 'Inactivos / Desactivados' },
+  { value: 'pending_deletion', label: 'Pendientes de eliminación' },
+]
+
+const DATE_FILTER_OPTIONS: SelectOption[] = [
+  { value: 'all', label: 'Cualquier fecha' },
+  { value: 'today', label: 'Registrados hoy' },
+  { value: '7days', label: 'Últimos 7 días' },
+  { value: '30days', label: 'Últimos 30 días' },
+  { value: 'this_month', label: 'Este mes' },
+]
+
+const SORT_OPTIONS: SelectOption[] = [
+  { value: 'recent', label: 'Más recientes primero' },
+  { value: 'oldest', label: 'Más antiguos primero' },
+  { value: 'name_asc', label: 'Nombre (A – Z)' },
+  { value: 'name_desc', label: 'Nombre (Z – A)' },
+  { value: 'id_asc', label: 'ID de usuario (Asc)' },
 ]
 
 function roleBadgeVariant(role: UserRole): 'navy' | 'gold' | 'neutral' {
@@ -85,24 +102,85 @@ export function UsersPage() {
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [dateFilter, setDateFilter] = useState('all')
+  const [sortBy, setSortBy] = useState('recent')
+  const [referenceTimestamp] = useState(() => Date.now())
+
+  const hasActiveFilters =
+    search.trim() !== '' ||
+    roleFilter !== 'all' ||
+    statusFilter !== 'all' ||
+    dateFilter !== 'all' ||
+    sortBy !== 'recent'
+
+  const resetFilters = () => {
+    setSearch('')
+    setRoleFilter('all')
+    setStatusFilter('all')
+    setDateFilter('all')
+    setSortBy('recent')
+  }
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()
-    return (data ?? []).filter((u) => {
+    const refDate = new Date(referenceTimestamp)
+    const todayStart = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate()).getTime()
+    const thisMonthStart = new Date(refDate.getFullYear(), refDate.getMonth(), 1).getTime()
+    const sevenDaysAgo = referenceTimestamp - 7 * 24 * 3600 * 1000
+    const thirtyDaysAgo = referenceTimestamp - 30 * 24 * 3600 * 1000
+
+    const list = (data ?? []).filter((u) => {
       const matchesTerm =
         !term ||
         (u.name ?? '').toLowerCase().includes(term) ||
         u.email.toLowerCase().includes(term) ||
         u.user_id.toLowerCase().includes(term)
       const matchesRole = roleFilter === 'all' || u.role === roleFilter
-      const matchesStatus =
-        statusFilter === 'all' || (statusFilter === 'active' ? u.is_active : !u.is_active)
-      
+
+      let matchesStatus = true
+      if (statusFilter === 'active') {
+        matchesStatus =
+          u.account_status === 'active' ||
+          (u.is_active && u.account_status !== 'pending_deletion' && u.account_status !== 'disabled')
+      } else if (statusFilter === 'disabled') {
+        matchesStatus = u.account_status === 'disabled' || !u.is_active
+      } else if (statusFilter === 'pending_deletion') {
+        matchesStatus = u.account_status === 'pending_deletion'
+      }
+
+      let matchesDate = true
+      const createdAt = u.created_at ? new Date(u.created_at).getTime() : 0
+      if (dateFilter === 'today') {
+        matchesDate = createdAt >= todayStart
+      } else if (dateFilter === '7days') {
+        matchesDate = createdAt >= sevenDaysAgo
+      } else if (dateFilter === '30days') {
+        matchesDate = createdAt >= thirtyDaysAgo
+      } else if (dateFilter === 'this_month') {
+        matchesDate = createdAt >= thisMonthStart
+      }
+
       const isNotSentinel = u.user_id !== 'ANON_DELETED' && u.email !== 'deleted@proxvel.internal'
 
-      return matchesTerm && matchesRole && matchesStatus && isNotSentinel
+      return matchesTerm && matchesRole && matchesStatus && matchesDate && isNotSentinel
     })
-  }, [data, search, roleFilter, statusFilter])
+
+    return list.sort((a, b) => {
+      if (sortBy === 'oldest') {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      }
+      if (sortBy === 'name_asc') {
+        return (a.name || a.email).localeCompare(b.name || b.email)
+      }
+      if (sortBy === 'name_desc') {
+        return (b.name || b.email).localeCompare(a.name || a.email)
+      }
+      if (sortBy === 'id_asc') {
+        return a.user_id.localeCompare(b.user_id)
+      }
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
+  }, [data, search, roleFilter, statusFilter, dateFilter, sortBy, referenceTimestamp])
 
   return (
     <div>
@@ -146,19 +224,39 @@ export function UsersPage() {
       )}
 
       {/* Filtros */}
-      <div className="mb-5 flex flex-col gap-3 rounded-xl border border-slate-200/80 bg-white p-3 shadow-soft md:flex-row md:items-center">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <Input
-            placeholder="Buscar por nombre, email o ID…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10"
-          />
+      <div className="mb-5 space-y-3 rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-soft">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              placeholder="Buscar por nombre, email o ID…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+            <SelectField value={roleFilter} onValueChange={setRoleFilter} options={ROLE_FILTER_OPTIONS} className="w-full sm:w-40" ariaLabel="Filtrar por rol" />
+            <SelectField value={statusFilter} onValueChange={setStatusFilter} options={STATUS_FILTER_OPTIONS} className="w-full sm:w-44" ariaLabel="Filtrar por estado" />
+            <SelectField value={dateFilter} onValueChange={setDateFilter} options={DATE_FILTER_OPTIONS} className="w-full sm:w-40" ariaLabel="Filtrar por fecha de registro" />
+            <SelectField value={sortBy} onValueChange={setSortBy} options={SORT_OPTIONS} className="w-full sm:w-44" ariaLabel="Ordenar usuarios" />
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <SelectField value={roleFilter} onValueChange={setRoleFilter} options={ROLE_FILTER_OPTIONS} className="w-full md:w-44" ariaLabel="Filtrar por rol" />
-          <SelectField value={statusFilter} onValueChange={setStatusFilter} options={STATUS_FILTER_OPTIONS} className="w-full md:w-36" ariaLabel="Filtrar por estado" />
+
+        <div className="flex items-center justify-between border-t border-slate-100 pt-2 text-xs text-slate-500">
+          <span>
+            Mostrando <strong className="font-semibold text-slate-800">{filtered.length}</strong> de <strong className="font-semibold text-slate-800">{data?.length ?? 0}</strong> usuarios
+          </span>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="inline-flex items-center gap-1 font-medium text-amber-700 hover:text-amber-800 transition-colors"
+            >
+              <XCircle className="h-3.5 w-3.5" />
+              Limpiar filtros
+            </button>
+          )}
         </div>
       </div>
 

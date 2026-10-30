@@ -54,6 +54,9 @@ export function DashboardHomePage() {
   const health = useSystemHealth()
   const destinationsQuery = useDestinations()
   const chartsQuery = useChartMetrics()
+
+  const [growthTimeframe, setGrowthTimeframe] = useState<'daily' | 'monthly'>('daily')
+  const [growthMetric, setGrowthMetric] = useState<'users' | 'cumulative'>('users')
   
   const m = metricsQuery.data
   const c = chartsQuery.data
@@ -409,42 +412,187 @@ export function DashboardHomePage() {
       {/* Row 5: Full Width Chart */}
       <div className="grid grid-cols-1 gap-6">
         <Card className="shadow-sm border-slate-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-700 tracking-wide uppercase">
-              <UsersIcon className="h-4 w-4 text-slate-400" />
-              CRECIMIENTO DE USUARIOS
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-4 h-[300px]">
-            {chartsQuery.isLoading ? (
-              <div className="h-full w-full flex items-center justify-center">
-                <div className="h-8 w-8 rounded-full border-4 border-slate-100 border-t-navy-500 animate-spin" />
+          <CardHeader className="pb-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-700 tracking-wide uppercase">
+                  <UsersIcon className="h-4 w-4 text-slate-400" />
+                  CRECIMIENTO DE USUARIOS
+                </CardTitle>
+                <p className="mt-1 text-xs text-slate-500">
+                  Monitoreo de altas y curva acumulada de usuarios en tiempo real.
+                </p>
               </div>
-            ) : c?.user_growth && c.user_growth.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={c.user_growth} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dx={-10} />
-                  <RechartsTooltip 
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="users" 
-                    name="Nuevos usuarios"
-                    stroke="#0f172a" 
-                    strokeWidth={3} 
-                    dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} 
-                    activeDot={{ r: 6, fill: '#d89b1f', stroke: '#fff' }} 
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full w-full flex items-center justify-center">
-                <p className="text-sm text-slate-400 italic">No hay suficientes datos históricos</p>
+
+              {/* Controles de precisión */}
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Granularidad */}
+                <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setGrowthTimeframe('daily')}
+                    className={cn(
+                      'px-2.5 py-1 rounded-md font-medium transition-colors',
+                      growthTimeframe === 'daily'
+                        ? 'bg-white text-navy-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    )}
+                  >
+                    Diario (30 días)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGrowthTimeframe('monthly')}
+                    className={cn(
+                      'px-2.5 py-1 rounded-md font-medium transition-colors',
+                      growthTimeframe === 'monthly'
+                        ? 'bg-white text-navy-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    )}
+                  >
+                    Histórico (Mensual)
+                  </button>
+                </div>
+
+                {/* Métrica */}
+                <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setGrowthMetric('users')}
+                    className={cn(
+                      'px-2.5 py-1 rounded-md font-medium transition-colors',
+                      growthMetric === 'users'
+                        ? 'bg-white text-navy-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    )}
+                  >
+                    Nuevos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGrowthMetric('cumulative')}
+                    className={cn(
+                      'px-2.5 py-1 rounded-md font-medium transition-colors',
+                      growthMetric === 'cumulative'
+                        ? 'bg-white text-navy-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    )}
+                  >
+                    Acumulado
+                  </button>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent className="pt-1 space-y-4">
+            {/* Tarjetas KPI de precisión */}
+            {c?.user_metrics && (
+              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-3">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">Total Registrados</p>
+                  <p className="mt-1 text-2xl font-bold text-slate-900">{c.user_metrics.total}</p>
+                </div>
+                <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-3">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">Hoy</p>
+                  <p className="mt-1 text-2xl font-bold text-jungle-600">+{c.user_metrics.new_today}</p>
+                </div>
+                <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-3">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">Últimos 7 días</p>
+                  <p className="mt-1 text-2xl font-bold text-navy-700">+{c.user_metrics.new_this_week}</p>
+                </div>
+                <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-3">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">Este mes</p>
+                  <p className="mt-1 text-2xl font-bold text-amber-600">+{c.user_metrics.new_this_month}</p>
+                </div>
               </div>
             )}
+
+            {/* Gráfico */}
+            <div className="h-[280px] w-full">
+              {chartsQuery.isLoading ? (
+                <div className="flex h-full w-full items-center justify-center">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-100 border-t-navy-500" />
+                </div>
+              ) : (() => {
+                const isDaily = growthTimeframe === 'daily' && Boolean(c?.user_growth_daily && c.user_growth_daily.length > 0)
+                const chartData: Array<Record<string, string | number | undefined>> = isDaily ? (c?.user_growth_daily ?? []) : (c?.user_growth ?? [])
+                const xKey = isDaily ? 'day' : 'month'
+
+                if (!chartData || chartData.length === 0) {
+                  return (
+                    <div className="flex h-full w-full items-center justify-center">
+                      <p className="text-sm italic text-slate-400">No hay suficientes datos históricos</p>
+                    </div>
+                  )
+                }
+
+                return (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData} margin={{ top: 10, right: 20, bottom: 5, left: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis
+                        dataKey={xKey}
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 11, fill: '#64748b' }}
+                        dy={8}
+                      />
+                      <YAxis
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 11, fill: '#64748b' }}
+                        dx={-8}
+                        allowDecimals={false}
+                      />
+                      <RechartsTooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const raw = payload[0].payload as {
+                              date?: string
+                              day?: string
+                              month?: string
+                              users?: number
+                              cumulative?: number
+                            }
+                            const dateLabel = raw.date || raw.month || raw.day || ''
+                            return (
+                              <div className="rounded-lg border border-slate-200 bg-white p-2.5 text-xs shadow-md space-y-1">
+                                <p className="font-bold text-slate-800">{dateLabel}</p>
+                                <p className="text-slate-600">
+                                  Nuevos usuarios:{' '}
+                                  <strong className="text-slate-900">{raw.users ?? 0}</strong>
+                                </p>
+                                {raw.cumulative != null && (
+                                  <p className="text-navy-700">
+                                    Total acumulado:{' '}
+                                    <strong className="font-bold">{raw.cumulative}</strong>
+                                  </p>
+                                )}
+                              </div>
+                            )
+                          }
+                          return null
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey={growthMetric}
+                        name={growthMetric === 'cumulative' ? 'Total acumulado' : 'Nuevos usuarios'}
+                        stroke={growthMetric === 'cumulative' ? '#0284c7' : '#0f172a'}
+                        strokeWidth={2.5}
+                        dot={chartData.length <= 15 ? { r: 3.5, strokeWidth: 2, fill: '#fff' } : false}
+                        activeDot={{
+                          r: 5,
+                          fill: growthMetric === 'cumulative' ? '#0284c7' : '#d89b1f',
+                          stroke: '#fff',
+                        }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )
+              })()}
+            </div>
           </CardContent>
         </Card>
       </div>

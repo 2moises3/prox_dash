@@ -345,7 +345,14 @@ export interface DashboardPriorities {
 }
 
 export interface ChartData {
-  user_growth: { month: string; users: number }[]
+  user_growth: { month: string; users: number; cumulative?: number }[]
+  user_growth_daily?: { date: string; day: string; users: number; cumulative: number }[]
+  user_metrics?: {
+    total: number
+    new_today: number
+    new_this_week: number
+    new_this_month: number
+  }
   reviews_by_month: { month: string; reviews: number }[]
   destinations_by_category: { name: string; value: number }[]
   destinations_by_region: { name: string; value: number }[]
