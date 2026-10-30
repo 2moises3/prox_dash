@@ -39,7 +39,11 @@ describe('formulario de la ficha del destino', () => {
 
   it('formulario vacío sin destino cargado', () => {
     const f = buildInfoForm(null)
-    expect(Object.values(f).every((v) => v === '')).toBe(true)
+    expect(f.geofence_radius_meters).toBe('250')
+    expect(f.min_dwell_minutes).toBe('20')
+    expect(Object.entries(f)
+      .filter(([key]) => key !== 'geofence_radius_meters' && key !== 'min_dwell_minutes')
+      .every(([, value]) => value === '')).toBe(true)
   })
 
   it('al guardar: números se convierten, vacío borra y basura se ignora', () => {
@@ -49,6 +53,17 @@ describe('formulario de la ficha del destino', () => {
     expect(p.latitude).toBe(-9.07)
     expect('longitude' in p).toBe(false)
     expect(p.city).toBe('Huaraz')
+  })
+
+  it('envía al backend el radio de 25 km y la permanencia de 1 minuto', () => {
+    const form = {
+      ...buildInfoForm(detail),
+      geofence_radius_meters: '25000',
+      min_dwell_minutes: '1',
+    }
+    const payload = infoFormToPayload(form)
+    expect(payload.geofence_radius_meters).toBe(25000)
+    expect(payload.min_dwell_minutes).toBe(1)
   })
 
   it('costo y dificultad vacíos se envían vacíos para borrarlos en el backend', () => {
