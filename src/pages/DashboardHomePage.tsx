@@ -1,8 +1,8 @@
 import { Children, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowUpRight, ChevronDown, ClipboardList, ImageOff, MapPin, MessageSquare, Users } from 'lucide-react'
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { useChartMetrics, useDashboardPriorities, useMetricsOverview, useSystemHealth } from '@/hooks/useMetrics'
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { useChartMetrics, useDashboardPriorities, useMetricsOverview, useRecentActivity, useSystemHealth } from '@/hooks/useMetrics'
 import { useDestinations } from '@/hooks/useDestinations'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -12,6 +12,7 @@ import { LoadingRows } from '@/components/feedback/LoadingRows'
 const number = new Intl.NumberFormat('es-PE')
 const date = new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium', timeZone: 'America/Lima' })
 const panel = 'min-w-0 rounded-xl border border-zinc-200 bg-white p-4 md:p-5'
+const chartColors = ['#fdbA00', '#171717', '#a1a1aa', '#e4e4e7', '#d99f00']
 
 export function DashboardHomePage() {
   const metrics = useMetricsOverview()
@@ -19,6 +20,7 @@ export function DashboardHomePage() {
   const priorities = useDashboardPriorities()
   const catalog = useDestinations()
   const health = useSystemHealth()
+  const activity = useRecentActivity()
   const [period, setPeriod] = useState<'daily' | 'monthly'>('daily')
   const overview = metrics.data
   const records = priorities.data
@@ -33,6 +35,11 @@ export function DashboardHomePage() {
     ? records.reviews_pending + records.destinations_out_of_engine + records.announcements_expiring_7d + missing.length
     : undefined
   const destinationLink = (id: string) => '/destinos/' + encodeURIComponent(id)
+  const categories = charts.data?.destinations_by_category.filter(item => item.value > 0) ?? []
+  const categoryTop = categories.slice(0, 4)
+  const categoryOther = categories.slice(4).reduce((sum, item) => sum + item.value, 0)
+  const categorySlices = categoryOther ? [...categoryTop, { name: 'Otras', value: categoryOther }] : categoryTop
+  const coverage = overview?.destinations.total ? Math.round(overview.destinations.with_cover / overview.destinations.total * 100) : 0
   
 
   return (
@@ -122,7 +129,32 @@ export function DashboardHomePage() {
           </div>
         </>}
       </section>
-      <footer className="order-4 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600 xl:col-span-5">
+      <section aria-label="Composición y actividad" className="order-4 grid min-w-0 gap-4 md:grid-cols-2 xl:col-span-5 xl:grid-cols-3">
+        <div className={panel}>
+          <h2 className="text-lg font-semibold">Destinos por categoría</h2>
+          <p className="text-sm text-zinc-600">Distribución del catálogo</p>
+          {charts.isLoading ? <Skeleton className="mt-4 h-40" /> : categorySlices.length ? <div className="mt-2 flex items-center gap-3">
+            <div className="h-40 min-w-0 flex-1" role="img" aria-label="Distribución de destinos por categoría">
+              <ResponsiveContainer><PieChart><Pie data={categorySlices} dataKey="value" nameKey="name" innerRadius="56%" outerRadius="78%" paddingAngle={2} stroke="none" isAnimationActive={false}>{categorySlices.map((item, index) => <Cell key={item.name} fill={chartColors[index]} />)}</Pie><Tooltip formatter={(value) => number.format(Number(value))} /></PieChart></ResponsiveContainer>
+            </div>
+            <ul className="min-w-0 flex-1 space-y-2">{categorySlices.map((item, index) => <li key={item.name} className="flex min-w-0 items-center gap-2 text-xs"><span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: chartColors[index] }} /><span className="min-w-0 flex-1 truncate" title={item.name}>{item.name}</span><strong className="tabular-nums">{item.value}</strong></li>)}</ul>
+          </div> : <p className="mt-5 text-sm text-zinc-500">Sin categorías registradas.</p>}
+        </div>
+        <div className={panel}>
+          <h2 className="text-lg font-semibold">Cobertura del catálogo</h2>
+          <p className="text-sm text-zinc-600">Preparación de las fichas para los viajeros</p>
+          {metrics.isLoading ? <Skeleton className="mt-5 h-40" /> : overview ? <div className="mt-5 space-y-5">
+            <div><div className="mb-2 flex justify-between text-sm"><span>Destinos con portada</span><strong>{coverage}%</strong></div><div className="h-2.5 overflow-hidden rounded-full bg-zinc-100"><div className="h-full rounded-full bg-gold-500" style={{ width: `${coverage}%` }} /></div><p className="mt-1 text-xs text-zinc-500">{overview.destinations.with_cover} de {overview.destinations.total} destinos</p></div>
+            <div className="grid grid-cols-2 gap-3 border-t border-zinc-100 pt-4"><div><strong className="block text-2xl">{number.format(overview.map_markers)}</strong><span className="text-xs text-zinc-600">En el mapa</span></div><div><strong className="block text-2xl">{number.format(overview.announcements.active)}</strong><span className="text-xs text-zinc-600">Anuncios activos</span></div></div>
+          </div> : <p className="mt-5 text-sm text-zinc-500">Datos no disponibles.</p>}
+        </div>
+        <div className={panel + ' md:col-span-2 xl:col-span-1'}>
+          <div className="flex items-center justify-between gap-2"><h2 className="text-lg font-semibold">Actividad reciente</h2><span className="text-xs text-zinc-500">Últimos movimientos</span></div>
+          {activity.isError && <ErrorState compact title="No se pudo cargar la actividad" onRetry={() => void activity.refetch()} />}
+          {activity.isLoading ? <LoadingRows label="Cargando actividad" /> : activity.data?.length ? <ul className="mt-3 divide-y divide-zinc-100">{activity.data.slice(0, 4).map((item, index) => <li key={`${item.at}-${index}`}><Link to={item.link} className="flex items-start justify-between gap-3 rounded-md py-2 text-sm hover:bg-zinc-50"><span className="min-w-0"><strong className="block truncate font-medium" title={item.title}>{item.title}</strong><span className="block truncate text-xs text-zinc-500">{item.subtitle}</span></span><ArrowUpRight className="mt-1 size-4 shrink-0 text-zinc-400" /></Link></li>)}</ul> : !activity.isError && <p className="mt-5 text-sm text-zinc-500">Todavía no hay actividad reciente.</p>}
+        </div>
+      </section>
+      <footer className="order-5 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600 xl:col-span-5">
         <span>{overview ? 'Datos del ' + date.format(new Date(overview.generated_at)) : ''}</span>
         <span>{health.isError ? 'Sin respuesta del servidor' : health.data ? 'Servidor en línea' : 'Comprobando servidor…'} {health.isError && <Button size="sm" variant="subtle" onClick={() => void health.refetch()}>Reintentar</Button>}</span>
       </footer>
