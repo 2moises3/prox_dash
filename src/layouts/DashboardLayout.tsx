@@ -16,7 +16,7 @@ export function DashboardLayout() {
   const location = useLocation()
 
   return (
-    <div className="flex min-h-screen bg-[#f5f5f4]">
+    <div className="min-h-screen bg-[#111111] lg:flex">
       {/* Sidebar fijo escritorio */}
       <div className="hidden lg:block">
         <div className="fixed inset-y-0 left-0 z-40 w-60">
@@ -49,24 +49,26 @@ export function DashboardLayout() {
       </AnimatePresence>
 
       {/* Contenido principal */}
-      <div className="flex min-h-screen flex-1 flex-col lg:pl-60">
-        <Topbar onMenuClick={() => setMobileOpen(true)} />
-        <main className="flex-1 px-4 py-5 sm:px-6 lg:px-8">
-          <div className="mx-auto w-full max-w-7xl">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={location.pathname}
-                variants={pageVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-              >
-                <Outlet />
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        </main>
+      <div className="min-w-0 flex-1 p-1 sm:p-2 lg:pl-60">
+        <div className="flex min-h-[calc(100vh-8px)] flex-col rounded-[20px] border border-[#292929] bg-[#f7f7f5] sm:min-h-[calc(100vh-16px)] sm:rounded-[24px]">
+          <Topbar onMenuClick={() => setMobileOpen(true)} />
+          <main className="flex-1 px-4 py-5 sm:px-6 lg:px-8">
+            <div className="mx-auto w-full max-w-7xl">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={location.pathname}
+                  variants={pageVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <Outlet />
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   )

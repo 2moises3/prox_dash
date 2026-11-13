@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <aside
-      className="flex h-full w-60 flex-col bg-[#171717] text-white"
+      className="flex h-full w-60 flex-col bg-[#111111] text-white"
     >
       {/* Logo */}
       <div className="flex h-20 items-center border-b border-white/10 px-5">
