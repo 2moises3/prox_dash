@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom'
 import { PageHeader } from '@/components/dashboard/PageHeader'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { LoadingRows } from '@/components/feedback/LoadingRows'
 import { Switch } from '@/components/ui/switch'
 import { useEngineStatus, useSetDestinationInEngine } from '@/hooks/useEngine'
 
@@ -12,8 +13,8 @@ export function EnginePage() {
   const membership = useSetDestinationInEngine()
   return <div>
     <PageHeader title="Motor de recomendación V3" description="Versión científica y visibilidad de destinos. Los datos del cálculo son de solo lectura." />
-    {isError ? <Button onClick={() => refetch()}>Reintentar carga</Button> : null}
-    {isLoading ? <p>Cargando versión del motor…</p> : null}
+    {isError ? <ErrorState title="No se pudo consultar el motor" onRetry={() => void refetch()} /> : null}
+    {isLoading ? <LoadingRows label="Cargando motor" /> : null}
     {data ? <div className="space-y-6">
       <Card><CardHeader><CardTitle>{data.version}</CardTitle></CardHeader><CardContent>
         <p className="text-sm text-slate-600">El motor conserva su snapshot validado. Ocultar destinos no cambia la normalización sobre los 14 de referencia. Añadir una ficha turística no la incorpora automáticamente al ranking.</p>

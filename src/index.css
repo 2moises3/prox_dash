@@ -1,4 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
+@font-face { font-family: Outfit; src: url("/fonts/Outfit-Regular.ttf") format("truetype"); font-weight: 400; font-display: swap; }
+@font-face { font-family: Outfit; src: url("/fonts/Outfit-Medium.ttf") format("truetype"); font-weight: 500; font-display: swap; }
+@font-face { font-family: Outfit; src: url("/fonts/Outfit-SemiBold.ttf") format("truetype"); font-weight: 600; font-display: swap; }
+@font-face { font-family: Outfit; src: url("/fonts/Outfit-Bold.ttf") format("truetype"); font-weight: 700; font-display: swap; }
 
 @tailwind base;
 @tailwind components;
@@ -7,9 +10,9 @@
 @layer base {
   :root {
     color-scheme: light;
-    --navy: #0e1730;
-    --gold: #d89b1f;
-    --surface: #f4f7fa;
+    --navy: #1a1f2e;
+    --gold: #fdba00;
+    --surface: #f9fafb;
   }
 
   html, body, #root {
@@ -18,8 +21,8 @@
 
   body {
     @apply antialiased text-slate-800;
-    background-color: #f4f7fa;
-    font-family: 'Montserrat', system-ui, sans-serif;
+    background-color: #f9fafb;
+    font-family: 'Outfit', system-ui, sans-serif;
     font-feature-settings: 'cv11', 'ss01';
   }
 
@@ -62,7 +65,7 @@
     width: 3px;
     height: 60%;
     border-radius: 0 3px 3px 0;
-    background: #d89b1f;
+    background: #fdba00;
   }
 
   /* ── Gold bottom accent (cards hover) ────────────────────────────── */
@@ -71,7 +74,9 @@
     border-bottom: 3px solid transparent;
   }
   .card-hover-gold:hover {
-    border-bottom-color: #d89b1f;
+    border-bottom-color: #fdba00;
     transform: translateY(-2px);
   }
 }
+
+@media (prefers-reduced-motion: reduce) { .skeleton::after { animation: none; } }

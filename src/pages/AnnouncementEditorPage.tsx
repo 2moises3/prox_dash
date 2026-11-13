@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { SelectField } from '@/components/ui/select'
+import { ErrorState } from '@/components/feedback/ErrorState'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AnnouncementPreview } from '@/components/announcements/AnnouncementPreview'
 import {
@@ -246,6 +247,13 @@ export function AnnouncementEditorPage() {
     } else {
       setPendingFile(file)
     }
+  }
+
+  if (isEdit && existing.isError && !existing.data) {
+    return <div>
+      <PageHeader title="Editar anuncio" backTo="/anuncios" backLabel="Volver a anuncios" />
+      <ErrorState title="No se pudo cargar el anuncio" onRetry={() => void existing.refetch()} />
+    </div>
   }
 
   if (isEdit && existing.isLoading) {

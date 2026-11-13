@@ -37,7 +37,7 @@ export function Brand({ className, size = 'md', subtitle, light = false }: Brand
           <span
             className={cn(
               'text-[9px] font-bold tracking-[0.14em] uppercase leading-none mt-1',
-              light ? 'text-[#D89B1F]' : 'text-[#B87D0F]',
+              light ? 'text-gold-400' : 'text-gold-800',
             )}
           >
             {subtitle}

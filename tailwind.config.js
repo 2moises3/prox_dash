@@ -5,6 +5,7 @@ export default {
   theme: {
     extend: {
       colors: {
+        discovery: '#7756c5',
         // ── PROXVEL Brand ─────────────────────────────────────────────────
         navy: {
           50:  '#eef2fb',
@@ -16,7 +17,7 @@ export default {
           600: '#1a4ab0',
           700: '#163d8e',
           800: '#102c6b',
-          900: '#0e1730', // Primary navy
+          900: '#1a1f2e', // Primary navy
           950: '#070d1a',
         },
         gold: {
@@ -24,8 +25,8 @@ export default {
           100: '#faedcc',
           200: '#f4d895',
           300: '#edc260',
-          400: '#e6ac34',
-          500: '#d89b1f', // Primary gold
+          400: '#ffcd4d',
+          500: '#fdba00', // Primary gold
           600: '#c0841a',
           700: '#9e6b14',
           800: '#7c5410',
@@ -50,8 +51,8 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'Montserrat', 'system-ui', 'sans-serif'],
-        serif: ['"Playfair Display"', 'Georgia', 'serif'],
+        sans: ['Outfit', 'system-ui', 'sans-serif'],
+        serif: ['Outfit', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
         soft:    '0 2px 8px -2px rgba(14,23,48,0.08), 0 4px 16px -4px rgba(14,23,48,0.06)',

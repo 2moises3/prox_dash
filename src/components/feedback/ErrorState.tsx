@@ -7,6 +7,7 @@ interface ErrorStateProps {
   message?: string
   onRetry?: () => void
   className?: string
+  compact?: boolean
 }
 
 export function ErrorState({
@@ -14,11 +15,14 @@ export function ErrorState({
   message = 'Ocurrió un problema al comunicarse con el backend.',
   onRetry,
   className,
+  compact = false,
 }: ErrorStateProps) {
   return (
     <div
+      role="alert"
       className={cn(
-        'flex flex-col items-center justify-center rounded-2xl border border-rose-100 bg-rose-50/50 px-6 py-12 text-center',
+        'flex flex-col items-center justify-center rounded-2xl border border-rose-100 bg-rose-50/50 px-6 text-center',
+        compact ? 'my-3 py-4' : 'py-12',
         className,
       )}
     >

@@ -47,10 +47,9 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
       {/* Título desktop */}
       <div className="hidden items-center gap-2 lg:flex">
         <div
-          className="h-4 w-0.5 rounded-full"
-          style={{ background: '#d89b1f' }}
+          className="h-4 w-0.5 rounded-full bg-gold-500"
         />
-        <p className="text-sm font-semibold tracking-wide text-navy-900" style={{ color: '#0e1730' }}>
+        <p className="text-sm font-semibold tracking-wide text-navy-900">
           Panel Administrativo
         </p>
       </div>

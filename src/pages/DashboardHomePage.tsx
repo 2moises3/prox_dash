@@ -1,779 +1,144 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  MapPin,
-  Image as ImageIcon,
-  ImageOff,
-  VideoOff,
-  Users as UsersIcon,
-  Megaphone,
-  MessageSquare,
-  Map,
-  Activity,
-  Star,
-  ShieldCheck,
-  CheckCircle2,
-  Clock,
-  BarChart3,
-  ChevronRight,
-  Lightbulb,
-  Eye,
-  EyeOff,
-  UserPlus,
-  Smartphone,
-  Sparkles,
-  CalendarClock,
-} from 'lucide-react'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  PieChart,
-  Pie,
-  Cell,
-  Legend
-} from 'recharts'
-
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { ErrorState } from '@/components/feedback/ErrorState'
-import { useMetricsOverview, useSystemHealth, useChartMetrics, useRecentActivity, useDashboardPriorities } from '@/hooks/useMetrics'
-import { formatRelative } from '@/utils/format'
-import type { ActivityItem } from '@/types'
+import { ArrowUpRight, ClipboardList, Compass, ImageOff, MapPin, MessageSquare, Users } from 'lucide-react'
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { useChartMetrics, useDashboardPriorities, useMetricsOverview, useSystemHealth } from '@/hooks/useMetrics'
 import { useDestinations } from '@/hooks/useDestinations'
-import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { ErrorState } from '@/components/feedback/ErrorState'
+import { LoadingRows } from '@/components/feedback/LoadingRows'
+
+const number = new Intl.NumberFormat('es-PE')
+const date = new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium', timeZone: 'America/Lima' })
+const panel = 'min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft md:p-6'
 
 export function DashboardHomePage() {
-  const metricsQuery = useMetricsOverview()
+  const metrics = useMetricsOverview()
+  const charts = useChartMetrics()
+  const priorities = useDashboardPriorities()
+  const catalog = useDestinations()
   const health = useSystemHealth()
-  const destinationsQuery = useDestinations()
-  const chartsQuery = useChartMetrics()
-
-  const [growthTimeframe, setGrowthTimeframe] = useState<'daily' | 'monthly'>('daily')
-  const [growthMetric, setGrowthMetric] = useState<'users' | 'cumulative'>('users')
+  const [period, setPeriod] = useState<'daily' | 'monthly'>('daily')
+  const [imageFailed, setImageFailed] = useState<string>()
+  const overview = metrics.data
+  const records = priorities.data
+  const destinations = catalog.data
+  const cover = destinations?.find(item => item.is_active && item.cover_image_url)?.cover_image_url
+  const missing = destinations?.filter(item => item.is_active && !item.cover_image_url)
+  const days = charts.data?.user_growth_daily
+  const daily = period === 'daily' && Boolean(days?.length)
+  const growth = daily
+    ? days?.map(item => ({ label: item.day, users: item.users }))
+    : charts.data?.user_growth.map(item => ({ label: item.month, users: item.users }))
+  const pending = records && missing
+    ? records.reviews_pending + records.destinations_out_of_engine + records.announcements_expiring_7d + missing.length
+    : undefined
+  const destinationLink = (id: string) => '/destinos/' + encodeURIComponent(id)
   
-  const m = metricsQuery.data
-  const c = chartsQuery.data
-  const destinations = destinationsQuery.data || []
-  const activityQuery = useRecentActivity()
-  const prioritiesQuery = useDashboardPriorities()
-  const activity = activityQuery.data ?? []
-  const coverOf = (id?: string) => (id ? destinations.find((d) => d.destination_id === id)?.cover_image_url : null)
-  const pr = prioritiesQuery.data
-
-  // Derived metrics
-  const totalDestinations = m?.destinations.total || 0
-  const withCover = m?.destinations.with_cover || 0
-  const withoutCover = m?.destinations.without_cover || 0
-  const withoutMedia = m?.destinations.without_media || 0
-  
-  const coveragePercent = totalDestinations > 0 ? Math.round((withCover / totalDestinations) * 100) : 0
-
-  if (metricsQuery.isError) {
-    return (
-      <div className="p-8">
-        <ErrorState
-          title="No se pudieron cargar las métricas"
-          message="Verifica que el backend esté disponible y que tu sesión tenga permisos administrativos."
-          onRetry={() => void metricsQuery.refetch()}
-        />
-      </div>
-    )
-  }
 
   return (
-    <div className="flex flex-col gap-6 max-w-[1600px] mx-auto p-4 md:p-8 animate-in fade-in duration-500">
-      {/* Header Row */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight font-serif">Centro de control de PROXVEL</h1>
-          <p className="text-slate-500 mt-1 text-sm sm:text-base">
-            Supervisa destinos, portadas, multimedia, actividad reciente y estado operativo desde un solo lugar.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" className="bg-white" asChild>
-            <Link to="/destinos">
-              <MapPin className="mr-2 h-4 w-4" />
-              Ver destinos
-            </Link>
-          </Button>
-          <Button className="bg-navy-900 hover:bg-navy-800 text-white border-0 shadow-md">
-            <CheckCircle2 className="mr-2 h-4 w-4 text-gold-400" />
-            Revisar pendientes
-          </Button>
-        </div>
-      </div>
-
-      {/* Row 1: Image Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <ImageCard
-          title="DESTINOS ACTIVOS"
-          value={totalDestinations}
-          subtitle="Publicados y visibles en la app"
-          icon={<MapPin className="h-5 w-5 text-white" />}
-          bgUrl="https://images.unsplash.com/photo-1526392060635-9d6019884377?q=80&w=800&auto=format&fit=crop"
-          color="navy"
-          loading={metricsQuery.isLoading}
-        />
-        <ImageCard
-          title="CON PORTADA"
-          value={withCover}
-          subtitle="Cuentan con imagen principal"
-          icon={<ImageIcon className="h-5 w-5 text-white" />}
-          bgUrl="https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=800&auto=format&fit=crop"
-          color="jungle"
-          loading={metricsQuery.isLoading}
-        />
-        <ImageCard
-          title="SIN PORTADA"
-          value={withoutCover}
-          subtitle="Requiere imagen principal"
-          icon={<ImageOff className="h-5 w-5 text-white" />}
-          bgUrl="https://images.unsplash.com/photo-1506929562872-bb421503ef21?q=80&w=800&auto=format&fit=crop"
-          color="amber"
-          loading={metricsQuery.isLoading}
-        />
-        <ImageCard
-          title="SIN MULTIMEDIA"
-          value={withoutMedia}
-          subtitle="Sin fotos ni videos asociados"
-          icon={<VideoOff className="h-5 w-5 text-white" />}
-          bgUrl="https://images.unsplash.com/photo-1501504905252-473c47e087f8?q=80&w=800&auto=format&fit=crop"
-          color="rose"
-          loading={metricsQuery.isLoading}
-        />
-      </div>
-
-      {/* Row 2: Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          icon={<UsersIcon className="h-5 w-5 text-slate-500" />}
-          title="USUARIOS"
-          value={m?.users.total || 0}
-          subtitle={m ? `${m.users.travelers} viajeros · ${m.users.admins + m.users.super_admins} admins` : 'Cargando...'}
-          loading={metricsQuery.isLoading}
-          iconBg="bg-slate-100"
-        />
-        <StatCard
-          icon={<Megaphone className="h-5 w-5 text-jungle-600" />}
-          title="ANUNCIOS ACTIVOS"
-          value={m?.announcements.active || 0}
-          subtitle={m ? `${m.announcements.total} en total` : 'Cargando...'}
-          loading={metricsQuery.isLoading}
-          iconBg="bg-jungle-50"
-        />
-        <StatCard
-          icon={<MessageSquare className="h-5 w-5 text-purple-600" />}
-          title="RESEÑAS RECIBIDAS"
-          value={m?.reviews.total || 0}
-          subtitle="Nuevas reseñas"
-          loading={metricsQuery.isLoading}
-          iconBg="bg-purple-50"
-        />
-        <StatCard
-          icon={<Map className="h-5 w-5 text-amber-600" />}
-          title="MARCADORES EN MAPA"
-          value={m?.map_markers || 0}
-          subtitle="Puntos de interés"
-          loading={metricsQuery.isLoading}
-          iconBg="bg-amber-50"
-        />
-      </div>
-
-      {/* Row 3: Three Columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Salud del catálogo */}
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-700 tracking-wide uppercase">
-              <Activity className="h-4 w-4 text-slate-400" />
-              SALUD DEL CATÁLOGO
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-8">
-              <div className="relative w-32 h-32 shrink-0">
-                <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 100 100">
-                  {/* Background circle */}
-                  <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f1f5f9" strokeWidth="12" />
-                  {/* Foreground circle (coverage) */}
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    fill="transparent"
-                    stroke={coveragePercent >= 80 ? '#059669' : coveragePercent >= 50 ? '#d97706' : '#e11d48'}
-                    strokeWidth="12"
-                    strokeDasharray={`${(coveragePercent / 100) * 251.2} 251.2`}
-                    strokeLinecap="round"
-                    className="transition-all duration-1000 ease-out"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                  <span className="text-2xl font-bold text-slate-800">{coveragePercent}%</span>
-                  <span className="text-[10px] uppercase font-medium text-slate-400 leading-tight mt-0.5">
-                    Cobertura<br/>del catálogo
-                  </span>
-                </div>
-              </div>
-              <div className="flex-1 space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2 text-slate-600 font-medium">
-                    <div className="w-2 h-2 rounded-full bg-jungle-600"></div>
-                    Con portada
-                  </div>
-                  <span className="font-bold text-slate-900">{withCover}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2 text-slate-600 font-medium">
-                    <div className="w-2 h-2 rounded-full bg-amber-500"></div>
-                    Sin portada
-                  </div>
-                  <span className="font-bold text-slate-900">{withoutCover}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2 text-slate-600 font-medium">
-                    <div className="w-2 h-2 rounded-full bg-rose-600"></div>
-                    Sin multimedia
-                  </div>
-                  <span className="font-bold text-slate-900">{withoutMedia}</span>
-                </div>
-              </div>
-            </div>
-            <div className="mt-6 flex items-start gap-2 bg-amber-50/50 p-3 rounded-xl border border-amber-100/50">
-              <Lightbulb className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Mejora los destinos incompletos para ofrecer una mejor experiencia visual en la app.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Prioridades de hoy */}
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-700 tracking-wide uppercase">
-              <Star className="h-4 w-4 text-slate-400" />
-              PRIORIDADES DE HOY
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-2">
-            <div className="space-y-1">
-              <PriorityItem
-                icon={<ImageOff className="h-4 w-4 text-amber-600" />}
-                iconBg="bg-amber-50"
-                title={`${withoutCover} destino${withoutCover !== 1 ? 's' : ''} sin portada`}
-                subtitle="Requiere imagen principal"
-                link="/destinos?filter=no_cover"
-              />
-              <PriorityItem
-                icon={<VideoOff className="h-4 w-4 text-rose-600" />}
-                iconBg="bg-rose-50"
-                title={`${withoutMedia} destino${withoutMedia !== 1 ? 's' : ''} sin multimedia`}
-                subtitle="Agregar contenido visual"
-                link="/destinos?filter=no_media"
-              />
-              <PriorityItem
-                icon={<MessageSquare className="h-4 w-4 text-purple-600" />}
-                iconBg="bg-purple-50"
-                title={`${pr?.reviews_pending ?? 0} reseña${pr?.reviews_pending === 1 ? '' : 's'} por procesar`}
-                subtitle="Su análisis puede apoyar una futura versión científica"
-                link="/importar-datos"
-              />
-              <PriorityItem
-                icon={<Sparkles className="h-4 w-4 text-blue-600" />}
-                iconBg="bg-blue-50"
-                title={`${pr?.destinations_out_of_engine ?? 0} destino${pr?.destinations_out_of_engine === 1 ? '' : 's'} fuera del motor`}
-                subtitle="Visibles en la app pero sin recomendaciones"
-                link="/motor"
-              />
-              <PriorityItem
-                icon={<CalendarClock className="h-4 w-4 text-amber-600" />}
-                iconBg="bg-amber-50"
-                title={`${pr?.announcements_expiring_7d ?? 0} anuncio${pr?.announcements_expiring_7d === 1 ? '' : 's'} por vencer`}
-                subtitle="Terminan en los próximos 7 días"
-                link="/anuncios"
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Estado operativo */}
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-700 tracking-wide uppercase">
-              <ShieldCheck className="h-4 w-4 text-slate-400" />
-              ESTADO OPERATIVO
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-2">
-            <div className="space-y-4">
-              <StatusRow
-                label="API"
-                value={health.isSuccess ? 'Disponible' : 'Inaccesible'}
-                status={health.isSuccess ? 'good' : 'bad'}
-              />
-              <StatusRow
-                label="Backend"
-                value={health.isSuccess ? 'Conectado' : 'Desconectado'}
-                status={health.isSuccess ? 'good' : 'bad'}
-              />
-              <StatusRow
-                label="Autenticación"
-                value="Activa"
-                status="good"
-              />
-              <StatusRow
-                label="Base URL"
-                value={import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v1'}
-                status="neutral"
-                isSecret={true}
-              />
-              <StatusRow
-                label="Última sincronización"
-                value={m?.generated_at ? format(new Date(m.generated_at), "d MMM yyyy, HH:mm", { locale: es }) : 'Desconocido'}
-                status="neutral"
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Row 4: Two Columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Actividad Reciente */}
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-700 tracking-wide uppercase">
-              <Clock className="h-4 w-4 text-slate-400" />
-              ACTIVIDAD RECIENTE
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-4">
-            <div className="relative border-l-2 border-slate-100 ml-3 space-y-6">
-              {activity.map((item, i) => (
-                <ActivityRow key={`${item.type}-${item.at}-${i}`} item={item} cover={coverOf(item.destination_id)} />
-              ))}
-              {!activityQuery.isLoading && activity.length === 0 && (
-                <p className="pl-6 text-sm text-slate-400 italic">Todavía no hay actividad.</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Gráfico de Catálogo */}
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-700 tracking-wide uppercase">
-              <BarChart3 className="h-4 w-4 text-slate-400" />
-              DESTINOS POR CATEGORÍA
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-4 h-[300px] flex items-center justify-center">
-            {chartsQuery.isLoading ? (
-              <div className="h-32 w-32 rounded-full border-4 border-slate-100 border-t-gold-500 animate-spin" />
-            ) : c?.destinations_by_category && c.destinations_by_category.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={c.destinations_by_category}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={90}
-                    paddingAngle={2}
-                    dataKey="value"
-                  >
-                    {c.destinations_by_category.map((_, index) => {
-                      const colors = ['#d89b1f', '#0f172a', '#059669', '#7c3aed', '#e11d48', '#0ea5e9']
-                      return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-                    })}
-                  </Pie>
-                  <RechartsTooltip 
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="text-sm text-slate-400 italic">No hay datos suficientes</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Row 5: Full Width Chart */}
-      <div className="grid grid-cols-1 gap-6">
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader className="pb-3">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-700 tracking-wide uppercase">
-                  <UsersIcon className="h-4 w-4 text-slate-400" />
-                  CRECIMIENTO DE USUARIOS
-                </CardTitle>
-                <p className="mt-1 text-xs text-slate-500">
-                  Monitoreo de altas y curva acumulada de usuarios en tiempo real.
-                </p>
-              </div>
-
-              {/* Controles de precisión */}
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Granularidad */}
-                <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setGrowthTimeframe('daily')}
-                    className={cn(
-                      'px-2.5 py-1 rounded-md font-medium transition-colors',
-                      growthTimeframe === 'daily'
-                        ? 'bg-white text-navy-900 shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    )}
-                  >
-                    Diario (30 días)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setGrowthTimeframe('monthly')}
-                    className={cn(
-                      'px-2.5 py-1 rounded-md font-medium transition-colors',
-                      growthTimeframe === 'monthly'
-                        ? 'bg-white text-navy-900 shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    )}
-                  >
-                    Histórico (Mensual)
-                  </button>
-                </div>
-
-                {/* Métrica */}
-                <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setGrowthMetric('users')}
-                    className={cn(
-                      'px-2.5 py-1 rounded-md font-medium transition-colors',
-                      growthMetric === 'users'
-                        ? 'bg-white text-navy-900 shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    )}
-                  >
-                    Nuevos
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setGrowthMetric('cumulative')}
-                    className={cn(
-                      'px-2.5 py-1 rounded-md font-medium transition-colors',
-                      growthMetric === 'cumulative'
-                        ? 'bg-white text-navy-900 shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    )}
-                  >
-                    Acumulado
-                  </button>
-                </div>
-              </div>
-            </div>
-          </CardHeader>
-
-          <CardContent className="pt-1 space-y-4">
-            {/* Tarjetas KPI de precisión */}
-            {c?.user_metrics && (
-              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-                <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-3">
-                  <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">Total Registrados</p>
-                  <p className="mt-1 text-2xl font-bold text-slate-900">{c.user_metrics.total}</p>
-                </div>
-                <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-3">
-                  <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">Hoy</p>
-                  <p className="mt-1 text-2xl font-bold text-jungle-600">+{c.user_metrics.new_today}</p>
-                </div>
-                <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-3">
-                  <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">Últimos 7 días</p>
-                  <p className="mt-1 text-2xl font-bold text-navy-700">+{c.user_metrics.new_this_week}</p>
-                </div>
-                <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-3">
-                  <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">Este mes</p>
-                  <p className="mt-1 text-2xl font-bold text-amber-600">+{c.user_metrics.new_this_month}</p>
-                </div>
-              </div>
-            )}
-
-            {/* Gráfico */}
-            <div className="h-[280px] w-full">
-              {chartsQuery.isLoading ? (
-                <div className="flex h-full w-full items-center justify-center">
-                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-100 border-t-navy-500" />
-                </div>
-              ) : (() => {
-                const isDaily = growthTimeframe === 'daily' && Boolean(c?.user_growth_daily && c.user_growth_daily.length > 0)
-                const chartData: Array<Record<string, string | number | undefined>> = isDaily ? (c?.user_growth_daily ?? []) : (c?.user_growth ?? [])
-                const xKey = isDaily ? 'day' : 'month'
-
-                if (!chartData || chartData.length === 0) {
-                  return (
-                    <div className="flex h-full w-full items-center justify-center">
-                      <p className="text-sm italic text-slate-400">No hay suficientes datos históricos</p>
-                    </div>
-                  )
-                }
-
-                return (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ top: 10, right: 20, bottom: 5, left: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                      <XAxis
-                        dataKey={xKey}
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 11, fill: '#64748b' }}
-                        dy={8}
-                      />
-                      <YAxis
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 11, fill: '#64748b' }}
-                        dx={-8}
-                        allowDecimals={false}
-                      />
-                      <RechartsTooltip
-                        content={({ active, payload }) => {
-                          if (active && payload && payload.length) {
-                            const raw = payload[0].payload as {
-                              date?: string
-                              day?: string
-                              month?: string
-                              users?: number
-                              cumulative?: number
-                            }
-                            const dateLabel = raw.date || raw.month || raw.day || ''
-                            return (
-                              <div className="rounded-lg border border-slate-200 bg-white p-2.5 text-xs shadow-md space-y-1">
-                                <p className="font-bold text-slate-800">{dateLabel}</p>
-                                <p className="text-slate-600">
-                                  Nuevos usuarios:{' '}
-                                  <strong className="text-slate-900">{raw.users ?? 0}</strong>
-                                </p>
-                                {raw.cumulative != null && (
-                                  <p className="text-navy-700">
-                                    Total acumulado:{' '}
-                                    <strong className="font-bold">{raw.cumulative}</strong>
-                                  </p>
-                                )}
-                              </div>
-                            )
-                          }
-                          return null
-                        }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey={growthMetric}
-                        name={growthMetric === 'cumulative' ? 'Total acumulado' : 'Nuevos usuarios'}
-                        stroke={growthMetric === 'cumulative' ? '#0284c7' : '#0f172a'}
-                        strokeWidth={2.5}
-                        dot={chartData.length <= 15 ? { r: 3.5, strokeWidth: 2, fill: '#fff' } : false}
-                        activeDot={{
-                          r: 5,
-                          fill: growthMetric === 'cumulative' ? '#0284c7' : '#d89b1f',
-                          stroke: '#fff',
-                        }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                )
-              })()}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  )
-}
-
-// --- Helper Components ---
-
-interface ImageCardProps {
-  title: string
-  value: number | string
-  subtitle: string
-  icon: React.ReactNode
-  bgUrl: string
-  color: 'navy' | 'jungle' | 'amber' | 'rose' | string
-  loading?: boolean
-}
-
-function ImageCard({ title, value, subtitle, icon, bgUrl, color, loading }: ImageCardProps) {
-  const overlayColors = {
-    navy: 'from-navy-900/90 to-navy-900/40',
-    jungle: 'from-jungle-900/90 to-jungle-900/40',
-    amber: 'from-amber-700/90 to-amber-700/40',
-    rose: 'from-rose-900/90 to-rose-900/40',
-  }
-  const bgClass = overlayColors[color as keyof typeof overlayColors] || overlayColors.navy
-
-  return (
-    <div className="relative overflow-hidden rounded-2xl h-[140px] shadow-sm group">
-      <div 
-        className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
-        style={{ backgroundImage: `url(${bgUrl})` }}
-      />
-      <div className={cn("absolute inset-0 bg-gradient-to-r", bgClass)} />
-      <div className="relative h-full flex flex-col justify-between p-5 text-white">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 bg-white/10 rounded-lg backdrop-blur-sm">
-            {icon}
-          </div>
-          <span className="text-xs font-bold tracking-wider uppercase opacity-90">{title}</span>
-        </div>
-        <div>
-          {loading ? (
-            <div className="h-8 w-12 bg-white/20 animate-pulse rounded" />
-          ) : (
-            <span className="text-3xl font-serif font-bold leading-none">{value}</span>
-          )}
-          <p className="text-xs text-white/80 mt-1 font-medium">{subtitle}</p>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-interface StatCardProps {
-  icon: React.ReactNode
-  title: string
-  value: number | string
-  subtitle: React.ReactNode
-  iconBg: string
-  loading?: boolean
-}
-
-function StatCard({ icon, title, value, subtitle, iconBg, loading }: StatCardProps) {
-  return (
-    <Card className="shadow-sm border-slate-200 hover:shadow-md transition-shadow">
-      <CardContent className="p-5 flex items-center gap-4">
-        <div className={cn("h-12 w-12 rounded-full flex items-center justify-center shrink-0", iconBg)}>
-          {icon}
-        </div>
-        <div>
-          <p className="text-[10px] font-bold tracking-wider uppercase text-slate-400">{title}</p>
-          {loading ? (
-            <div className="h-6 w-16 bg-slate-100 animate-pulse rounded mt-1" />
-          ) : (
-            <p className="text-2xl font-bold text-slate-800 leading-tight">{value}</p>
-          )}
-          <p className="text-xs text-slate-500 font-medium">{subtitle}</p>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-interface PriorityItemProps {
-  icon: React.ReactNode
-  iconBg: string
-  title: string
-  subtitle: string
-  link?: string
-}
-
-const ACTIVITY_ICONS: Record<ActivityItem['type'], React.ReactNode> = {
-  user: <UserPlus className="h-full w-full p-2.5 text-emerald-500" />,
-  review: <MessageSquare className="h-full w-full p-2.5 text-purple-500" />,
-  media: <ImageIcon className="h-full w-full p-2.5 text-sky-500" />,
-  announcement: <Megaphone className="h-full w-full p-2.5 text-amber-500" />,
-  release: <Smartphone className="h-full w-full p-2.5 text-slate-500" />,
-}
-
-function ActivityRow({ item, cover }: { item: ActivityItem; cover?: string | null }) {
-  return (
-    <Link to={item.link} className="relative block pl-6 group">
-      <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-white border-2 border-slate-200">
-        <div className="absolute inset-0.5 rounded-full bg-navy-600"></div>
-      </div>
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-slate-100 border border-slate-200">
-            {cover ? <img src={cover} alt="" className="h-full w-full object-cover" /> : ACTIVITY_ICONS[item.type]}
-          </div>
-          <div className="min-w-0">
-            <h4 className="truncate text-sm font-bold text-slate-800 group-hover:text-navy-700">{item.title}</h4>
-            <p className="text-xs text-slate-500">{item.subtitle}</p>
-          </div>
-        </div>
-        <div className="shrink-0 text-xs text-slate-400 font-medium">{formatRelative(item.at)}</div>
-      </div>
-    </Link>
-  )
-}
-
-function PriorityItem({ icon, iconBg, title, subtitle, link }: PriorityItemProps) {
-  const content = (
-    <div className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors group cursor-pointer">
-      <div className="flex items-center gap-3">
-        <div className={cn("h-8 w-8 rounded-full flex items-center justify-center shrink-0", iconBg)}>
-          {icon}
-        </div>
-        <div>
-          <p className="text-sm font-bold text-slate-800">{title}</p>
-          <p className="text-xs text-slate-500">{subtitle}</p>
-        </div>
-      </div>
-      <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-slate-500 transition-colors" />
-    </div>
-  )
-
-  if (link) {
-    return <Link to={link}>{content}</Link>
-  }
-  return content
-}
-
-interface StatusRowProps {
-  label: string
-  value: string | number
-  status: 'good' | 'bad' | 'neutral'
-  isSecret?: boolean
-}
-
-function StatusRow({ label, value, status, isSecret }: StatusRowProps) {
-  const [isVisible, setIsVisible] = useState(false)
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <div className="flex items-center gap-2 shrink-0">
-        <div className={cn(
-          "w-1.5 h-1.5 rounded-full",
-          status === 'good' ? "bg-jungle-500" : status === 'bad' ? "bg-rose-500" : "bg-slate-300"
-        )} />
-        <span className="text-sm font-medium text-slate-600">{label}</span>
-      </div>
-      <div className="flex items-center gap-2 min-w-0 justify-end">
-        <span className={cn(
-          "text-sm font-medium truncate text-right",
-          status === 'good' ? "text-jungle-600" : status === 'bad' ? "text-rose-600" : "text-slate-500"
-        )}>
-          {isSecret && !isVisible ? '••••••••••••••••••••' : value}
-        </span>
-        {isSecret && (
-          <button 
-            onClick={() => setIsVisible(!isVisible)} 
-            className="text-slate-400 hover:text-slate-600 focus:outline-none shrink-0 transition-colors"
-            title={isVisible ? "Ocultar" : "Mostrar"}
-          >
-            {isVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
+    <div className="mx-auto grid max-w-screen-2xl gap-6 px-1 py-2 sm:px-2">
+      <header className="relative isolate overflow-hidden rounded-3xl bg-navy-900 text-white">
+        {cover && imageFailed !== cover && (
+          <img src={cover} alt="" onError={() => setImageFailed(cover)} className="absolute inset-y-0 right-0 -z-20 h-full w-full object-cover object-center md:w-3/4" />
         )}
-      </div>
+        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-navy-900 via-navy-900/95 to-navy-900/65" />
+        <div className="grid gap-5 p-6 sm:p-9">
+          <div className="flex items-center gap-2 text-sm text-gold-300"><Compass className="size-4" aria-hidden="true" /> Panel de administración</div>
+          <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">Resumen de PROXVEL</h1>
+          <p className="max-w-lg text-sm text-slate-200 sm:text-base">Gestiona el catálogo y revisa la actividad de los viajeros.</p>
+          <div className="flex flex-wrap gap-3">
+            <Button asChild><a href="#pendientes"><ClipboardList className="size-4" /> Revisar pendientes{pending ? ' (' + number.format(pending) + ')' : ''}</a></Button>
+            <Button variant="secondary" asChild><Link to="/destinos">Ver catálogo <ArrowUpRight className="size-4" /></Link></Button>
+          </div>
+        </div>
+      </header>
+
+      <section id="pendientes" tabIndex={-1} aria-labelledby="pending-title" className={panel + ' scroll-mt-24'}>
+        <h2 id="pending-title" className="text-2xl font-semibold text-navy-900">Pendientes de revisión</h2>
+        {priorities.isError && <ErrorState compact title="No se pudieron consultar los pendientes" onRetry={() => void priorities.refetch()} />}
+        {catalog.isError && <ErrorState compact title="No se pudieron comprobar las portadas" onRetry={() => void catalog.refetch()} />}
+        {(priorities.isLoading || catalog.isLoading) && <LoadingRows label="Cargando pendientes" />}
+        {pending === 0 && <p className="mt-3 text-sm text-slate-600">No hay pendientes en este momento.</p>}
+        {pending !== 0 && (
+          <div className="mt-4 grid gap-x-8 gap-y-4 lg:grid-cols-2">
+            {missing?.length ? <TaskGroup title={'Destinos activos sin portada · ' + missing.length}>
+              {missing.map(item => <Task key={item.destination_id} to={destinationLink(item.destination_id) + '?tab=multimedia'} name={item.destination} detail="Editar portada" />)}
+            </TaskGroup> : null}
+            {records?.reviews_pending ? <TaskGroup title={'Reseñas por procesar · ' + records.reviews_pending}>
+              {records.review_destinations?.map(item => <Task key={item.destination_id} to={destinationLink(item.destination_id) + '?tab=comments'} name={item.name} detail={item.count + ' por procesar'} />)}
+              {!records.review_destinations && <Task to="/motor" name="Consultar el motor" />}
+            </TaskGroup> : null}
+            {records?.destinations_out_of_engine ? <TaskGroup title={'Destinos activos fuera del motor · ' + records.destinations_out_of_engine}>
+              {records.outside_engine?.map(item => <Task key={item.destination_id} to={destinationLink(item.destination_id)} name={item.name} detail="Revisar ficha" />)}
+              {!records.outside_engine && <Task to="/motor" name="Ver destinos del motor" />}
+            </TaskGroup> : null}
+            {records?.announcements_expiring_7d ? <TaskGroup title={'Anuncios que vencen en 7 días · ' + records.announcements_expiring_7d}>
+              {records.expiring_announcements?.map(item => <Task key={item.id} to={'/anuncios/' + item.id} name={item.title} detail={date.format(new Date(item.ends_at))} />)}
+              {!records.expiring_announcements && <Task to="/anuncios" name="Ver anuncios" />}
+            </TaskGroup> : null}
+          </div>
+        )}
+      </section>
+
+      <section aria-label="Indicadores operativos">
+        {metrics.isError && <ErrorState compact title="No se pudieron consultar los indicadores" onRetry={() => void metrics.refetch()} />}
+        {(metrics.isLoading || overview) && <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-busy={metrics.isLoading}>
+          {[
+            { label: 'Destinos en el catálogo', value: overview?.destinations.total, Icon: MapPin, note: overview ? overview.destinations.with_cover + ' con portada' : '' },
+            { label: 'Destinos activos sin portada', value: missing?.length, Icon: ImageOff, note: 'Revisar en pendientes' },
+            { label: 'Viajeros registrados', value: overview?.users.travelers, Icon: Users, note: 'Total de cuentas viajeras' },
+            { label: 'Reseñas recibidas', value: overview?.reviews.total, Icon: MessageSquare, note: 'Total histórico' },
+          ].map(({ label, value, Icon, note }) => <div key={label} className={panel}>
+            <Icon className="mb-3 size-5 text-discovery" aria-hidden="true" />
+            <div className="text-sm text-slate-600">{label}</div>
+            {metrics.isLoading ? <Skeleton className="mt-2 h-8 w-20" /> : <div className="mt-1 text-3xl font-semibold tabular-nums text-navy-900">{value === undefined ? '—' : number.format(value)}</div>}
+            <p className="mt-2 text-xs text-slate-600">{note}</p>
+          </div>)}
+        </div>}
+      </section>
+
+      <section aria-label="Evolución de actividad" className="grid gap-5 xl:grid-cols-2">
+        {charts.isError && <ErrorState compact className="xl:col-span-2" title="No se pudieron consultar las series" onRetry={() => void charts.refetch()} />}
+        {(charts.isLoading || charts.data) && <>
+          <div className={panel}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div><h2 className="text-xl font-semibold">Nuevos registros</h2><p className="text-sm text-slate-600">{daily ? 'Altas por día' : 'Altas por mes'}</p></div>
+              <div className="flex gap-2">
+                {days?.length ? <Button size="sm" variant={daily ? 'primary' : 'subtle'} aria-pressed={daily} onClick={() => setPeriod('daily')}>Días</Button> : null}
+                <Button size="sm" variant={!daily ? 'primary' : 'subtle'} aria-pressed={!daily} onClick={() => setPeriod('monthly')}>Meses</Button>
+              </div>
+            </div>
+            {charts.isLoading ? <Skeleton className="mt-4 h-56" /> : growth?.length ? (
+              <div className="mt-4 h-56" role="group" aria-label="Serie de registros">
+                <ResponsiveContainer><AreaChart data={growth} margin={{ left: -18, right: 8, top: 8 }}><CartesianGrid strokeDasharray="3 5" vertical={false} /><XAxis dataKey="label" minTickGap={22} tick={{ fontSize: 12 }} /><YAxis allowDecimals={false} tick={{ fontSize: 12 }} /><Tooltip /><Area name="Registros" dataKey="users" stroke="#7756c5" strokeWidth={2} fill="#eee7fb" isAnimationActive={false} /></AreaChart></ResponsiveContainer>
+              </div>
+            ) : <p className="mt-6 text-sm text-slate-600">Todavía no hay registros para graficar.</p>}
+          </div>
+          <div className={panel}>
+            <h2 className="text-xl font-semibold">Reseñas por mes</h2>
+            <p className="text-sm text-slate-600">Volumen recibido en cada periodo</p>
+            {charts.isLoading ? <Skeleton className="mt-4 h-56" /> : charts.data?.reviews_by_month.length ? (
+              <div className="mt-4 h-56" role="group" aria-label="Serie mensual de reseñas">
+                <ResponsiveContainer><BarChart data={charts.data.reviews_by_month} margin={{ left: -18, right: 8, top: 8 }}><CartesianGrid strokeDasharray="3 5" vertical={false} /><XAxis dataKey="month" minTickGap={22} tick={{ fontSize: 12 }} /><YAxis allowDecimals={false} tick={{ fontSize: 12 }} /><Tooltip /><Bar name="Reseñas" dataKey="reviews" fill="#d99f00" radius={[4, 4, 0, 0]} isAnimationActive={false} /></BarChart></ResponsiveContainer>
+              </div>
+            ) : <p className="mt-6 text-sm text-slate-600">Todavía no hay reseñas para graficar.</p>}
+          </div>
+        </>}
+      </section>
+      <footer className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600">
+        <span>{overview ? 'Datos del ' + date.format(new Date(overview.generated_at)) : ''}</span>
+        <span>{health.isError ? 'Sin respuesta del servidor' : health.data ? 'Servidor en línea' : 'Comprobando servidor…'} {health.isError && <Button size="sm" variant="subtle" onClick={() => void health.refetch()}>Reintentar</Button>}</span>
+      </footer>
     </div>
   )
 }
 
+function TaskGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  return <div className="rounded-xl border border-slate-200 p-3"><h3 className="px-2 text-sm font-semibold text-navy-900">{title}</h3><ul className="mt-2 divide-y divide-slate-100">{children}</ul></div>
+}
+
+function Task({ to, name, detail }: { to: string; name: string; detail?: string }) {
+  return <li><Link to={to} className="flex min-h-11 items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-gold-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-discovery"><span className="min-w-0 flex-1 font-medium">{name}{detail && <span className="block text-xs font-normal text-slate-600">{detail}</span>}</span><ArrowUpRight className="size-4 shrink-0 text-slate-500" aria-hidden="true" /></Link></li>
+}

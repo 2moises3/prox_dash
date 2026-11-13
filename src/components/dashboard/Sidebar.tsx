@@ -10,7 +10,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <aside
       className="flex h-full w-72 flex-col"
-      style={{ background: '#0e1730' }}
+      style={{ background: '#1a1f2e' }}
     >
       {/* Logo */}
       <div className="flex h-16 items-center border-b border-white/8 px-6">
@@ -59,7 +59,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                           {item.hint ? (
                             <span
                               className="rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide"
-                              style={{ background: 'rgba(216,155,31,0.15)', color: '#d89b1f' }}
+                              style={{ background: 'rgba(253,186,0,0.15)', color: '#fdba00' }}
                             >
                               {item.hint}
                             </span>

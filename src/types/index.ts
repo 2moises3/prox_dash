@@ -342,6 +342,9 @@ export interface DashboardPriorities {
   reviews_pending: number
   destinations_out_of_engine: number
   announcements_expiring_7d: number
+  review_destinations?: { destination_id: string; name: string; count: number }[]
+  outside_engine?: { destination_id: string; name: string }[]
+  expiring_announcements?: { id: number; title: string; ends_at: string }[]
 }
 
 export interface ChartData {

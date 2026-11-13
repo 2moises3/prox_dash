@@ -128,7 +128,7 @@ export function DestinationDetailPage() {
   const defaultTab = tabParam === 'multimedia' ? 'media' : tabParam === 'comments' ? 'comments' : 'info'
   const [activeTab, setActiveTab] = useState<'info' | 'media' | 'context' | 'tech' | 'comments'>(defaultTab as 'info' | 'media' | 'context' | 'tech' | 'comments')
 
-  const { data: reviewsData, isLoading: isLoadingReviews } = useDestinationReviews(id)
+  const { data: reviewsData, isLoading: isLoadingReviews, isError: reviewsError, refetch: refetchReviews } = useDestinationReviews(id)
   const setReviewHidden = useSetReviewHidden(id)
 
   const [isEditingInfo, setIsEditingInfo] = useState(false)
@@ -723,7 +723,9 @@ export function DestinationDetailPage() {
                 <Badge variant="neutral">{reviewsData?.length || 0} reseñas</Badge>
               </CardHeader>
               <CardContent>
-                {isLoadingReviews ? (
+                {reviewsError && !reviewsData ? (
+                  <ErrorState compact title="No se pudieron cargar las reseñas" onRetry={() => void refetchReviews()} />
+                ) : isLoadingReviews ? (
                   <div className="space-y-4">
                     <Skeleton className="h-24 w-full rounded-xl" />
                     <Skeleton className="h-24 w-full rounded-xl" />

@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { SelectField, type SelectOption } from '@/components/ui/select'
-import { Skeleton } from '@/components/ui/skeleton'
+import { LoadingRows } from '@/components/feedback/LoadingRows'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
@@ -263,11 +263,7 @@ export function UsersPage() {
       {isError ? (
         <ErrorState onRetry={() => void refetch()} />
       ) : isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-lg" />
-          ))}
-        </div>
+        <LoadingRows label="Cargando usuarios" rows={6} />
       ) : !data || data.length === 0 ? (
         <EmptyState
           icon={Users}
