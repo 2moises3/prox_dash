@@ -1,6 +1,6 @@
 import { Children, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowUpRight, ChevronDown, ClipboardList, ImageOff, MapPin, MessageSquare, Users } from 'lucide-react'
+import { ArrowUpRight, ClipboardList, ImageOff, MapPin, MessageSquare, Users } from 'lucide-react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useChartMetrics, useDashboardPriorities, useMetricsOverview, useRecentActivity, useSystemHealth } from '@/hooks/useMetrics'
 import { useDestinations } from '@/hooks/useDestinations'
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { LoadingRows } from '@/components/feedback/LoadingRows'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 const number = new Intl.NumberFormat('es-PE')
 const date = new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium', timeZone: 'America/Lima' })
@@ -56,7 +57,7 @@ export function DashboardHomePage() {
           </div>
       </header>
 
-      <section id="pendientes" tabIndex={-1} aria-labelledby="pending-title" className={panel + ' order-2 self-start scroll-mt-4 xl:col-span-2'}>
+      <section id="pendientes" tabIndex={-1} aria-labelledby="pending-title" className={panel + ' order-2 flex h-full flex-col scroll-mt-4 xl:col-span-2'}>
         <div className="flex flex-wrap items-center justify-between gap-2"><h2 id="pending-title" className="text-xl font-semibold text-navy-900">Tareas del equipo</h2>{pending !== undefined && <span className="rounded-full bg-gold-50 px-3 py-1 text-xs font-semibold text-gold-800">{number.format(pending)} elementos</span>}</div>
         <p className="mt-1 text-sm text-zinc-600">Las reseñas pendientes esperan su procesamiento para el motor; siguen visibles en la app.</p>
         {priorities.isError && <ErrorState compact title="No se pudieron consultar los pendientes" onRetry={() => void priorities.refetch()} />}
@@ -64,7 +65,7 @@ export function DashboardHomePage() {
         {(priorities.isLoading || catalog.isLoading) && <LoadingRows label="Cargando pendientes" />}
         {pending === 0 && <p className="mt-3 text-sm text-slate-600">No hay pendientes en este momento.</p>}
         {pending !== 0 && (
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+          <div className="mt-4 grid flex-1 gap-3">
             {missing?.length ? <TaskGroup title={'Destinos activos sin portada · ' + missing.length}>
               {missing.map(item => <Task key={item.destination_id} to={destinationLink(item.destination_id) + '?tab=multimedia'} name={item.destination} detail="Editar portada" />)}
             </TaskGroup> : null}
@@ -163,12 +164,11 @@ export function DashboardHomePage() {
 }
 
 function TaskGroup({ title, children }: { title: string; children: React.ReactNode }) {
-  const [expanded, setExpanded] = useState(false)
+  const [open, setOpen] = useState(false)
   const items = Children.toArray(children)
-  const visible = expanded ? items : items.slice(0, 2)
-  return <div className="min-w-0 rounded-xl border border-zinc-200 bg-zinc-50/60 p-3"><h3 className="truncate px-1 text-sm font-semibold text-navy-900" title={title}>{title}</h3><ul className="mt-1 divide-y divide-zinc-200">{visible}</ul>{items.length > 2 && <button type="button" className="mt-1 flex w-full items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-500" onClick={() => setExpanded(value => !value)} aria-expanded={expanded}>{expanded ? 'Mostrar menos' : `Ver ${items.length - 2} más`}<ChevronDown className={'size-3.5 transition-transform ' + (expanded ? 'rotate-180' : '')} /></button>}</div>
+  return <div className="flex min-h-0 min-w-0 flex-col rounded-xl border border-zinc-200 bg-zinc-50/60 p-4"><h3 className="text-sm font-semibold text-navy-900">{title}</h3><ul className="mt-2 flex-1 divide-y divide-zinc-200">{items.slice(0, 2)}</ul>{items.length > 2 && <><button type="button" className="mt-3 flex w-full items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 hover:border-gold-400 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-500" onClick={() => setOpen(true)}>Ver lista completa <span className="rounded-full bg-gold-50 px-2 py-0.5 text-gold-800">{items.length} destinos</span></button><Dialog open={open} onOpenChange={setOpen}><DialogContent className="flex max-h-[85dvh] w-[min(92vw,800px)] max-w-none flex-col"><DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription>Selecciona un destino para abrir su ficha y gestionar esta tarea.</DialogDescription></DialogHeader><ul className="grid min-h-0 gap-x-5 overflow-y-auto sm:grid-cols-2">{items}</ul></DialogContent></Dialog></>}</div>
 }
 
 function Task({ to, name, detail }: { to: string; name: string; detail?: string }) {
-  return <li><Link to={to} className="flex min-h-10 items-center gap-2 rounded-md px-1 py-1.5 text-xs hover:bg-gold-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-500"><span className="min-w-0 flex-1 truncate font-medium" title={name}>{name}{detail && <span className="block truncate text-[11px] font-normal text-zinc-500">{detail}</span>}</span><ArrowUpRight className="size-3.5 shrink-0 text-zinc-500" aria-hidden="true" /></Link></li>
+  return <li><Link to={to} className="flex min-h-11 items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-gold-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-500"><span className="min-w-0 flex-1 font-medium">{name}{detail && <span className="block text-xs font-normal text-zinc-500">{detail}</span>}</span><ArrowUpRight className="size-4 shrink-0 text-zinc-500" aria-hidden="true" /></Link></li>
 }
