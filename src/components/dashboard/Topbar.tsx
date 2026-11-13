@@ -33,7 +33,7 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   const roleLabel = ROLE_LABEL[user?.role ?? ''] ?? 'Administrador'
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200/80 bg-white px-4 shadow-soft sm:px-6">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-zinc-200 bg-white px-4 sm:px-6">
       {/* Hamburger móvil */}
       <button
         type="button"
@@ -73,7 +73,7 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
             >
               <span
                 className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white"
-                style={{ background: '#0e1730' }}
+                style={{ background: '#171717' }}
               >
                 {initials}
               </span>

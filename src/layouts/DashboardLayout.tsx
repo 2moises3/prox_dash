@@ -16,10 +16,10 @@ export function DashboardLayout() {
   const location = useLocation()
 
   return (
-    <div className="flex min-h-screen" style={{ background: '#f4f7fa' }}>
+    <div className="flex min-h-screen bg-[#f5f5f4]">
       {/* Sidebar fijo escritorio */}
       <div className="hidden lg:block">
-        <div className="fixed inset-y-0 left-0 z-40 w-72">
+        <div className="fixed inset-y-0 left-0 z-40 w-60">
           <Sidebar />
         </div>
       </div>
@@ -32,8 +32,7 @@ export function DashboardLayout() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-navy-900/50 backdrop-blur-sm"
-              style={{ background: 'rgba(14,23,48,0.5)' }}
+              className="absolute inset-0 bg-black/55 backdrop-blur-sm"
               onClick={() => setMobileOpen(false)}
             />
             <motion.div
@@ -50,9 +49,9 @@ export function DashboardLayout() {
       </AnimatePresence>
 
       {/* Contenido principal */}
-      <div className="flex min-h-screen flex-1 flex-col lg:pl-72">
+      <div className="flex min-h-screen flex-1 flex-col lg:pl-60">
         <Topbar onMenuClick={() => setMobileOpen(true)} />
-        <main className="flex-1 px-4 py-7 sm:px-6 lg:px-8">
+        <main className="flex-1 px-4 py-5 sm:px-6 lg:px-8">
           <div className="mx-auto w-full max-w-7xl">
             <AnimatePresence mode="wait">
               <motion.div

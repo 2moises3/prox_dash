@@ -10,9 +10,9 @@
 @layer base {
   :root {
     color-scheme: light;
-    --navy: #1a1f2e;
+    --navy: #171717;
     --gold: #fdba00;
-    --surface: #f9fafb;
+    --surface: #f5f5f4;
   }
 
   html, body, #root {
@@ -21,7 +21,7 @@
 
   body {
     @apply antialiased text-slate-800;
-    background-color: #f9fafb;
+    background-color: #f5f5f4;
     font-family: 'Outfit', system-ui, sans-serif;
     font-feature-settings: 'cv11', 'ss01';
   }

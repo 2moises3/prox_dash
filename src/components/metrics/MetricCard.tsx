@@ -8,7 +8,7 @@ type Accent = 'gold' | 'navy' | 'slate' | 'rose'
 
 const ICON_STYLES: Record<Accent, { bg: string; color: string }> = {
   gold:  { bg: 'rgba(216,155,31,0.12)', color: '#c0841a' },
-  navy:  { bg: 'rgba(14,23,48,0.08)',   color: '#0e1730' },
+  navy:  { bg: 'rgba(23,23,23,0.08)',   color: '#171717' },
   slate: { bg: 'rgba(100,116,139,0.10)', color: '#475569' },
   rose:  { bg: 'rgba(244,63,94,0.10)',   color: '#e11d48' },
 }
@@ -57,7 +57,7 @@ export function MetricCard({
           {loading ? (
             <Skeleton className="mt-2 h-8 w-16" />
           ) : (
-            <p className="mt-1.5 text-3xl font-black tracking-tight text-navy-900" style={{ color: '#0e1730' }}>
+            <p className="mt-1.5 text-3xl font-black tracking-tight text-navy-900">
               {value ?? '—'}
             </p>
           )}

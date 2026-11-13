@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { Children, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowUpRight, ClipboardList, Compass, ImageOff, MapPin, MessageSquare, Users } from 'lucide-react'
+import { ArrowUpRight, ChevronDown, ClipboardList, ImageOff, MapPin, MessageSquare, Users } from 'lucide-react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useChartMetrics, useDashboardPriorities, useMetricsOverview, useSystemHealth } from '@/hooks/useMetrics'
 import { useDestinations } from '@/hooks/useDestinations'
@@ -11,7 +11,7 @@ import { LoadingRows } from '@/components/feedback/LoadingRows'
 
 const number = new Intl.NumberFormat('es-PE')
 const date = new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium', timeZone: 'America/Lima' })
-const panel = 'min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft md:p-6'
+const panel = 'min-w-0 rounded-2xl border border-zinc-200 bg-white p-5 md:p-6'
 
 export function DashboardHomePage() {
   const metrics = useMetricsOverview()
@@ -39,15 +39,15 @@ export function DashboardHomePage() {
 
   return (
     <div className="mx-auto grid max-w-screen-2xl gap-6 px-1 py-2 sm:px-2">
-      <header className="relative isolate overflow-hidden rounded-3xl bg-navy-900 text-white">
+      <header className="relative isolate overflow-hidden rounded-2xl border border-zinc-200 bg-white text-navy-900">
         {cover && imageFailed !== cover && (
-          <img src={cover} alt="" onError={() => setImageFailed(cover)} className="absolute inset-y-0 right-0 -z-20 h-full w-full object-cover object-center md:w-3/4" />
+          <img src={cover} alt="" onError={() => setImageFailed(cover)} className="absolute inset-y-0 right-0 -z-20 hidden h-full w-1/3 object-cover object-center opacity-90 lg:block" />
         )}
-        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-navy-900 via-navy-900/95 to-navy-900/65" />
-        <div className="grid gap-5 p-6 sm:p-9">
-          <div className="flex items-center gap-2 text-sm text-gold-300"><Compass className="size-4" aria-hidden="true" /> Panel de administración</div>
-          <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">Resumen de PROXVEL</h1>
-          <p className="max-w-lg text-sm text-slate-200 sm:text-base">Gestiona el catálogo y revisa la actividad de los viajeros.</p>
+        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-white via-white to-white/85" />
+        <div className="grid gap-3 p-5 sm:p-7">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-500"><span className="size-2 rounded-full bg-gold-500" /> Panel de administración</div>
+          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Resumen de PROXVEL</h1>
+          <p className="max-w-lg text-sm text-zinc-600">Gestiona el catálogo y revisa la actividad de los viajeros.</p>
           <div className="flex flex-wrap gap-3">
             <Button asChild><a href="#pendientes"><ClipboardList className="size-4" /> Revisar pendientes{pending ? ' (' + number.format(pending) + ')' : ''}</a></Button>
             <Button variant="secondary" asChild><Link to="/destinos">Ver catálogo <ArrowUpRight className="size-4" /></Link></Button>
@@ -56,17 +56,18 @@ export function DashboardHomePage() {
       </header>
 
       <section id="pendientes" tabIndex={-1} aria-labelledby="pending-title" className={panel + ' scroll-mt-24'}>
-        <h2 id="pending-title" className="text-2xl font-semibold text-navy-900">Pendientes de revisión</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2"><h2 id="pending-title" className="text-xl font-semibold text-navy-900">Tareas del equipo</h2>{pending !== undefined && <span className="rounded-full bg-gold-50 px-3 py-1 text-xs font-semibold text-gold-800">{number.format(pending)} elementos</span>}</div>
+        <p className="mt-1 text-sm text-zinc-600">Las reseñas pendientes esperan su procesamiento para el motor; siguen visibles en la app.</p>
         {priorities.isError && <ErrorState compact title="No se pudieron consultar los pendientes" onRetry={() => void priorities.refetch()} />}
         {catalog.isError && <ErrorState compact title="No se pudieron comprobar las portadas" onRetry={() => void catalog.refetch()} />}
         {(priorities.isLoading || catalog.isLoading) && <LoadingRows label="Cargando pendientes" />}
         {pending === 0 && <p className="mt-3 text-sm text-slate-600">No hay pendientes en este momento.</p>}
         {pending !== 0 && (
-          <div className="mt-4 grid gap-x-8 gap-y-4 lg:grid-cols-2">
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {missing?.length ? <TaskGroup title={'Destinos activos sin portada · ' + missing.length}>
               {missing.map(item => <Task key={item.destination_id} to={destinationLink(item.destination_id) + '?tab=multimedia'} name={item.destination} detail="Editar portada" />)}
             </TaskGroup> : null}
-            {records?.reviews_pending ? <TaskGroup title={'Reseñas por procesar · ' + records.reviews_pending}>
+            {records?.reviews_pending ? <TaskGroup title={'Reseñas para el motor · ' + records.reviews_pending}>
               {records.review_destinations?.map(item => <Task key={item.destination_id} to={destinationLink(item.destination_id) + '?tab=comments'} name={item.name} detail={item.count + ' por procesar'} />)}
               {!records.review_destinations && <Task to="/motor" name="Consultar el motor" />}
             </TaskGroup> : null}
@@ -112,7 +113,7 @@ export function DashboardHomePage() {
             </div>
             {charts.isLoading ? <Skeleton className="mt-4 h-56" /> : growth?.length ? (
               <div className="mt-4 h-56" role="group" aria-label="Serie de registros">
-                <ResponsiveContainer><AreaChart data={growth} margin={{ left: -18, right: 8, top: 8 }}><CartesianGrid strokeDasharray="3 5" vertical={false} /><XAxis dataKey="label" minTickGap={22} tick={{ fontSize: 12 }} /><YAxis allowDecimals={false} tick={{ fontSize: 12 }} /><Tooltip /><Area name="Registros" dataKey="users" stroke="#7756c5" strokeWidth={2} fill="#eee7fb" isAnimationActive={false} /></AreaChart></ResponsiveContainer>
+                <ResponsiveContainer><AreaChart data={growth} margin={{ left: -18, right: 8, top: 8 }}><CartesianGrid strokeDasharray="3 5" vertical={false} /><XAxis dataKey="label" minTickGap={22} tick={{ fontSize: 12 }} /><YAxis allowDecimals={false} tick={{ fontSize: 12 }} /><Tooltip /><Area name="Registros" dataKey="users" stroke="#d99f00" strokeWidth={2} fill="#fff4ce" isAnimationActive={false} /></AreaChart></ResponsiveContainer>
               </div>
             ) : <p className="mt-6 text-sm text-slate-600">Todavía no hay registros para graficar.</p>}
           </div>
@@ -136,9 +137,12 @@ export function DashboardHomePage() {
 }
 
 function TaskGroup({ title, children }: { title: string; children: React.ReactNode }) {
-  return <div className="rounded-xl border border-slate-200 p-3"><h3 className="px-2 text-sm font-semibold text-navy-900">{title}</h3><ul className="mt-2 divide-y divide-slate-100">{children}</ul></div>
+  const [expanded, setExpanded] = useState(false)
+  const items = Children.toArray(children)
+  const visible = expanded ? items : items.slice(0, 2)
+  return <div className="min-w-0 rounded-xl border border-zinc-200 bg-zinc-50/60 p-3"><h3 className="truncate px-1 text-sm font-semibold text-navy-900" title={title}>{title}</h3><ul className="mt-1 divide-y divide-zinc-200">{visible}</ul>{items.length > 2 && <button type="button" className="mt-1 flex w-full items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-500" onClick={() => setExpanded(value => !value)} aria-expanded={expanded}>{expanded ? 'Mostrar menos' : `Ver ${items.length - 2} más`}<ChevronDown className={'size-3.5 transition-transform ' + (expanded ? 'rotate-180' : '')} /></button>}</div>
 }
 
 function Task({ to, name, detail }: { to: string; name: string; detail?: string }) {
-  return <li><Link to={to} className="flex min-h-11 items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-gold-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-discovery"><span className="min-w-0 flex-1 font-medium">{name}{detail && <span className="block text-xs font-normal text-slate-600">{detail}</span>}</span><ArrowUpRight className="size-4 shrink-0 text-slate-500" aria-hidden="true" /></Link></li>
+  return <li><Link to={to} className="flex min-h-10 items-center gap-2 rounded-md px-1 py-1.5 text-xs hover:bg-gold-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-500"><span className="min-w-0 flex-1 truncate font-medium" title={name}>{name}{detail && <span className="block truncate text-[11px] font-normal text-zinc-500">{detail}</span>}</span><ArrowUpRight className="size-3.5 shrink-0 text-zinc-500" aria-hidden="true" /></Link></li>
 }
