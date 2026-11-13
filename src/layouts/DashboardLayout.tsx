@@ -49,7 +49,7 @@ export function DashboardLayout() {
       </AnimatePresence>
 
       {/* Contenido principal */}
-      <div className="h-full min-w-0 p-1 sm:p-2 lg:pl-[216px]">
+      <div className="h-full min-w-0 p-2 lg:p-3 lg:pl-[228px]">
         <div className="flex h-full min-w-0 flex-col overflow-hidden rounded-[18px] border border-[#292929] bg-white sm:rounded-[22px]">
           <div className="lg:hidden"><Topbar onMenuClick={() => setMobileOpen(true)} /></div>
           <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6 lg:px-7">
