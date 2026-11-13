@@ -16,10 +16,10 @@ export function DashboardLayout() {
   const location = useLocation()
 
   return (
-    <div className="min-h-screen bg-[#111111] lg:flex">
+    <div className="h-dvh overflow-hidden bg-[#111111]">
       {/* Sidebar fijo escritorio */}
       <div className="hidden lg:block">
-        <div className="fixed inset-y-0 left-0 z-40 w-60">
+        <div className="fixed inset-y-0 left-0 z-40 w-[216px]">
           <Sidebar />
         </div>
       </div>
@@ -49,11 +49,11 @@ export function DashboardLayout() {
       </AnimatePresence>
 
       {/* Contenido principal */}
-      <div className="min-w-0 flex-1 p-1 sm:p-2 lg:pl-60">
-        <div className="flex min-h-[calc(100vh-8px)] flex-col rounded-[20px] border border-[#292929] bg-[#f7f7f5] sm:min-h-[calc(100vh-16px)] sm:rounded-[24px]">
-          <Topbar onMenuClick={() => setMobileOpen(true)} />
-          <main className="flex-1 px-4 py-5 sm:px-6 lg:px-8">
-            <div className="mx-auto w-full max-w-7xl">
+      <div className="h-full min-w-0 p-1 sm:p-2 lg:pl-[216px]">
+        <div className="flex h-full min-w-0 flex-col overflow-hidden rounded-[18px] border border-[#292929] bg-white sm:rounded-[22px]">
+          <div className="lg:hidden"><Topbar onMenuClick={() => setMobileOpen(true)} /></div>
+          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6 lg:px-7">
+            <div className="w-full min-w-0">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={location.pathname}

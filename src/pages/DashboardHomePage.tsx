@@ -11,7 +11,7 @@ import { LoadingRows } from '@/components/feedback/LoadingRows'
 
 const number = new Intl.NumberFormat('es-PE')
 const date = new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium', timeZone: 'America/Lima' })
-const panel = 'min-w-0 rounded-2xl border border-zinc-200 bg-white p-5 md:p-6'
+const panel = 'min-w-0 rounded-xl border border-zinc-200 bg-white p-4 md:p-5'
 
 export function DashboardHomePage() {
   const metrics = useMetricsOverview()
@@ -20,11 +20,9 @@ export function DashboardHomePage() {
   const catalog = useDestinations()
   const health = useSystemHealth()
   const [period, setPeriod] = useState<'daily' | 'monthly'>('daily')
-  const [imageFailed, setImageFailed] = useState<string>()
   const overview = metrics.data
   const records = priorities.data
   const destinations = catalog.data
-  const cover = destinations?.find(item => item.is_active && item.cover_image_url)?.cover_image_url
   const missing = destinations?.filter(item => item.is_active && !item.cover_image_url)
   const days = charts.data?.user_growth_daily
   const daily = period === 'daily' && Boolean(days?.length)
@@ -38,24 +36,20 @@ export function DashboardHomePage() {
   
 
   return (
-    <div className="mx-auto grid max-w-screen-2xl gap-6 px-1 py-2 sm:px-2">
-      <header className="relative isolate overflow-hidden rounded-2xl border border-zinc-200 bg-white text-navy-900">
-        {cover && imageFailed !== cover && (
-          <img src={cover} alt="" onError={() => setImageFailed(cover)} className="absolute inset-y-0 right-0 -z-20 hidden h-full w-1/3 object-cover object-center opacity-90 lg:block" />
-        )}
-        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-white via-white to-white/85" />
-        <div className="grid gap-3 p-5 sm:p-7">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-500"><span className="size-2 rounded-full bg-gold-500" /> Panel de administración</div>
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Resumen de PROXVEL</h1>
-          <p className="max-w-lg text-sm text-zinc-600">Gestiona el catálogo y revisa la actividad de los viajeros.</p>
-          <div className="flex flex-wrap gap-3">
+    <div className="grid min-w-0 gap-4 xl:grid-cols-5">
+      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-zinc-200 pb-4 text-navy-900 xl:col-span-5">
+        <div>
+          <p className="mb-1 text-xs font-medium text-zinc-500">Panel de administración / Resumen</p>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Resumen de PROXVEL</h1>
+          <p className="mt-1 text-sm text-zinc-600">Actividad y tareas del catálogo en un solo lugar.</p>
+        </div>
+          <div className="flex flex-wrap gap-2">
             <Button asChild><a href="#pendientes"><ClipboardList className="size-4" /> Revisar pendientes{pending ? ' (' + number.format(pending) + ')' : ''}</a></Button>
             <Button variant="secondary" asChild><Link to="/destinos">Ver catálogo <ArrowUpRight className="size-4" /></Link></Button>
           </div>
-        </div>
       </header>
 
-      <section id="pendientes" tabIndex={-1} aria-labelledby="pending-title" className={panel + ' scroll-mt-24'}>
+      <section id="pendientes" tabIndex={-1} aria-labelledby="pending-title" className={panel + ' order-2 self-start scroll-mt-4 xl:col-span-2'}>
         <div className="flex flex-wrap items-center justify-between gap-2"><h2 id="pending-title" className="text-xl font-semibold text-navy-900">Tareas del equipo</h2>{pending !== undefined && <span className="rounded-full bg-gold-50 px-3 py-1 text-xs font-semibold text-gold-800">{number.format(pending)} elementos</span>}</div>
         <p className="mt-1 text-sm text-zinc-600">Las reseñas pendientes esperan su procesamiento para el motor; siguen visibles en la app.</p>
         {priorities.isError && <ErrorState compact title="No se pudieron consultar los pendientes" onRetry={() => void priorities.refetch()} />}
@@ -63,7 +57,7 @@ export function DashboardHomePage() {
         {(priorities.isLoading || catalog.isLoading) && <LoadingRows label="Cargando pendientes" />}
         {pending === 0 && <p className="mt-3 text-sm text-slate-600">No hay pendientes en este momento.</p>}
         {pending !== 0 && (
-          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
             {missing?.length ? <TaskGroup title={'Destinos activos sin portada · ' + missing.length}>
               {missing.map(item => <Task key={item.destination_id} to={destinationLink(item.destination_id) + '?tab=multimedia'} name={item.destination} detail="Editar portada" />)}
             </TaskGroup> : null}
@@ -83,7 +77,7 @@ export function DashboardHomePage() {
         )}
       </section>
 
-      <section aria-label="Indicadores operativos">
+      <section aria-label="Indicadores operativos" className="order-1 xl:col-span-5">
         {metrics.isError && <ErrorState compact title="No se pudieron consultar los indicadores" onRetry={() => void metrics.refetch()} />}
         {(metrics.isLoading || overview) && <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-busy={metrics.isLoading}>
           {[
@@ -92,7 +86,7 @@ export function DashboardHomePage() {
             { label: 'Viajeros registrados', value: overview?.users.travelers, Icon: Users, note: 'Total de cuentas viajeras' },
             { label: 'Reseñas recibidas', value: overview?.reviews.total, Icon: MessageSquare, note: 'Total histórico' },
           ].map(({ label, value, Icon, note }) => <div key={label} className={panel}>
-            <Icon className="mb-3 size-5 text-discovery" aria-hidden="true" />
+            <Icon className="mb-3 size-5 text-gold-600" aria-hidden="true" />
             <div className="text-sm text-slate-600">{label}</div>
             {metrics.isLoading ? <Skeleton className="mt-2 h-8 w-20" /> : <div className="mt-1 text-3xl font-semibold tabular-nums text-navy-900">{value === undefined ? '—' : number.format(value)}</div>}
             <p className="mt-2 text-xs text-slate-600">{note}</p>
@@ -100,8 +94,8 @@ export function DashboardHomePage() {
         </div>}
       </section>
 
-      <section aria-label="Evolución de actividad" className="grid gap-5 xl:grid-cols-2">
-        {charts.isError && <ErrorState compact className="xl:col-span-2" title="No se pudieron consultar las series" onRetry={() => void charts.refetch()} />}
+      <section aria-label="Evolución de actividad" className="order-3 grid min-w-0 gap-4 xl:col-span-3 2xl:grid-cols-2">
+        {charts.isError && <ErrorState compact className="2xl:col-span-2" title="No se pudieron consultar las series" onRetry={() => void charts.refetch()} />}
         {(charts.isLoading || charts.data) && <>
           <div className={panel}>
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -128,7 +122,7 @@ export function DashboardHomePage() {
           </div>
         </>}
       </section>
-      <footer className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600">
+      <footer className="order-4 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600 xl:col-span-5">
         <span>{overview ? 'Datos del ' + date.format(new Date(overview.generated_at)) : ''}</span>
         <span>{health.isError ? 'Sin respuesta del servidor' : health.data ? 'Servidor en línea' : 'Comprobando servidor…'} {health.isError && <Button size="sm" variant="subtle" onClick={() => void health.refetch()}>Reintentar</Button>}</span>
       </footer>
